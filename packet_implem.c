@@ -5,17 +5,7 @@
 #include "packet_interface.h"
 
 
-struct __attribute__((__packed__)) pkt {
-    struct{
-        uint8_t window : 5, tr : 1, type : 2;
-        uint8_t seqnum;
-        uint16_t length;
-        uint32_t timestamp;
-        uint32_t crc1;
-    } header;
-    char* payload;
-    uint32_t crc2;
-};
+
 
 pkt_t* pkt_new()
 {

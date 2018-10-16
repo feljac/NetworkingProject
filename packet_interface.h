@@ -5,6 +5,17 @@
 #include <stdint.h> /* uintx_t */
 
 /* Raccourci pour struct pkt */
+struct __attribute__((__packed__)) pkt {
+     struct header{
+        uint8_t window : 5, tr : 1, type : 2;
+        uint8_t seqnum;
+        uint16_t length;
+        uint32_t timestamp;
+        uint32_t crc1;
+    } header;
+    char* payload;
+    uint32_t crc2;
+};
 typedef struct pkt pkt_t;
 
 /* Types de paquets */
