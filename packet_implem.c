@@ -4,9 +4,6 @@
 #include "zlib-1.2.11/zlib.h"
 #include "packet_interface.h"
 
-
-
-
 pkt_t* pkt_new()
 {
     pkt_t *pkt = calloc(1, sizeof(pkt_t));
@@ -97,7 +94,7 @@ pkt_status_code pkt_encode(const pkt_t* pkt, char *buf, size_t *len)
     memcpy(buf + write, &crc, sizeof(crc));
     write += sizeof(crc);
 
-    if(!pkt_get_tr(pkt)){
+    if(pkt_get_length(pkt) != 0){
         if(*len < (sizeof(pkt->header) + pkt_get_length(pkt) + sizeof(pkt->crc2))){
             return E_NOMEM;
         }
