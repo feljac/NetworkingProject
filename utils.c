@@ -42,7 +42,3 @@ uint32_t generate_crc2(pkt_t * pkt){
     crc = crc32(crc, (Bytef*) pkt->payload, pkt_get_length(pkt));
     return htonl((uint32_t)crc);
 }
-
-void write_in_file(FILE* file, pkt_t* pkt){
-    if()
-}

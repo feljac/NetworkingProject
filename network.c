@@ -79,13 +79,12 @@ int create_socket(struct sockaddr_in6 *source_addr, int src_port, struct sockadd
 
 int wait_for_client(int sfd){
     char* buf[1024];
-    ssize_t nbrbytes;
     struct sockaddr_storage* src_addr =(struct sockaddr_storage*) calloc(1, sizeof(struct sockaddr_storage));
     socklen_t sendsize = sizeof(src_addr);
 
     fprintf(stderr,"Server waiting\n");
 
-    if((nbrbytes = recvfrom(sfd, buf, sizeof(buf), MSG_PEEK, (struct sockaddr*) src_addr, &sendsize)) == -1){
+    if((recvfrom(sfd, buf, sizeof(buf), MSG_PEEK, (struct sockaddr*) src_addr, &sendsize)) == -1){
         fprintf(stderr, "Error wait recvfrom\n");
         return -1;
     }
