@@ -2,9 +2,7 @@
 // Created by root on 16/10/18.
 //
 
-#include <netinet/in.h>
 #include "utils.h"
-#include "zlib-1.2.11/zlib.h"
 
 int compare_seqnum(uint8_t a, uint8_t b){
     if(a > b){

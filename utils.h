@@ -8,6 +8,8 @@
 #include <sys/poll.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "zlib-1.2.11/zlib.h"
+#include <netinet/in.h>
 
 #ifndef NETWORKING_PROJECT_UTILS_H
 #define NETWORKING_PROJECT_UTILS_H
