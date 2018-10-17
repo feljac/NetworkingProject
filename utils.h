@@ -3,6 +3,7 @@
 //
 
 #include "packet_interface.h"
+#include "sorted_queue.h"
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/poll.h>
@@ -22,5 +23,9 @@ int compare_seqnum(uint8_t a, uint8_t b);
 void next_seqnum(uint8_t* seqnum);
 
 uint32_t generate_crc1(pkt_t * pkt);
+
+int sorted_queue_compare_seqnum(uint8_t a, uint8_t b);
+
+void write_in_file(FILE* file, pkt_t* pkt);
 
 #endif //NETWORKING_PROJECT_UTILS_H

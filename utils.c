@@ -23,6 +23,10 @@ void next_seqnum(uint8_t* seqnum){
     }
 }
 
+int sorted_queue_compare_seqnum(uint8_t a, uint8_t b){
+    return (a + MAX_WINDOW_SIZE) % (MAX_SEQNUM + 1) < (b + MAX_WINDOW_SIZE) % (MAX_SEQNUM + 1);
+}
+
 uint32_t generate_crc1(pkt_t * pkt){
     uLong crc;
     uint8_t tr = pkt_get_tr(pkt);
@@ -37,4 +41,8 @@ uint32_t generate_crc2(pkt_t * pkt){
     uLong crc;
     crc = crc32(crc, (Bytef*) pkt->payload, pkt_get_length(pkt));
     return htonl((uint32_t)crc);
+}
+
+void write_in_file(FILE* file, pkt_t* pkt){
+    if()
 }
