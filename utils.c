@@ -15,7 +15,7 @@ int compare_seqnum(uint8_t a, uint8_t b){
 
 
 void next_seqnum(uint8_t* seqnum){
-    if(seqnum + 1 == MAX_SEQNUM){
+    if(*seqnum + 1 == MAX_SEQNUM){
         *seqnum = 0;
     }
     else{
@@ -39,13 +39,13 @@ uint32_t generate_crc1(pkt_t * pkt){
 
 uint32_t generate_crc2(pkt_t * pkt){
     uLong crc;
+    crc = crc32(0L, Z_NULL, 0);
     crc = crc32(crc, (Bytef*) pkt->payload, pkt_get_length(pkt));
     return htonl((uint32_t)crc);
 }
 
 char** get_file_by_name(int argc, char** argv){
-    int opt;
-    if ((opt = getopt(argc, argv, "f:")) != -1) {
+    if ((getopt(argc, argv, "f:")) != -1) {
         return &optarg;
     }
     return NULL;
