@@ -115,7 +115,7 @@ void receive_data_from_socket(FILE* file, int socket){
     ssize_t read_size = 0;
     uint8_t  tr = 0;
     uint8_t min_seqnum_received = 0;
-    uint8_t last_seqnum_written = 0;
+    uint8_t last_seqnum_written = 255;
     uint8_t window = MAX_WINDOW_SIZE - 1;
     uint32_t last_timestamp = 0;
     char buffer[sizeof(pkt_t) + MAX_PAYLOAD_SIZE];
