@@ -23,6 +23,7 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     int read = 0;
 
     if(len < sizeof(pkt->header)){
+        fprintf(stderr, "length header invalid\n");
         return E_NOMEM;
     }
 
@@ -39,8 +40,9 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     memcpy(&(pkt->header.crc1), data + read, sizeof(pkt->header.crc1));
     read += sizeof(pkt->header.crc1);
 
-    if(!pkt_get_tr(pkt)){
+    if(!pkt_get_tr(pkt) && pkt_get_length(pkt) != 0){
         if(len < (sizeof(pkt->header) + pkt_get_length(pkt) + sizeof(pkt->crc2))){
+            fprintf(stderr, "length payload invalid\n");
             return E_NOMEM;
         }
         pkt_set_payload(pkt, data + read, pkt_get_length(pkt));
@@ -54,11 +56,13 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     crc2 = crc32(0L, Z_NULL, 0);
     crc1 = crc32(crc1, (Bytef*) data, sizeof(pkt->header) - sizeof(uint32_t));
     if(htonl((uint32_t)crc1) != pkt_get_crc1(pkt)){
+        fprintf(stderr, "crc1 invalid\n");
         return E_CRC;
     }
 
     crc2 = crc32(crc2, (Bytef*) pkt->payload, pkt_get_length(pkt));
     if(htonl((uint32_t)crc2) != pkt_get_crc2(pkt)){
+        fprintf(stderr, "crc2 invalid\n");
         return E_CRC;
     }
 
@@ -70,6 +74,7 @@ pkt_status_code pkt_encode(const pkt_t* pkt, char *buf, size_t *len)
     int write = 0;
 
     if(*len < sizeof(pkt->header)){
+        fprintf(stderr,"encode :length header invalid\n");
         return E_NOMEM;
     }
 
@@ -96,6 +101,7 @@ pkt_status_code pkt_encode(const pkt_t* pkt, char *buf, size_t *len)
 
     if(pkt_get_length(pkt) != 0){
         if(*len < (sizeof(pkt->header) + pkt_get_length(pkt) + sizeof(pkt->crc2))){
+            fprintf(stderr,"encode :length payload invalid\n");
             return E_NOMEM;
         }
         memcpy(buf + write, pkt->payload, pkt_get_length(pkt));

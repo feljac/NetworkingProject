@@ -8,7 +8,7 @@ int main(int argc, char** argv){
     int port;
 	char *host;
     FILE* file;
-    char filename[50];
+    char* filename = NULL;
     list_pkt list_pkts;
     int is_file = 0;
     int c;
@@ -17,7 +17,12 @@ int main(int argc, char** argv){
         while ((c = getopt(argc, argv, "f:")) != -1) {
             switch (c) {
                 case 'f':
-                    memcpy(&filename, optarg, strlen(optarg));
+                    if((filename = malloc(strlen(optarg)+1)) == NULL){
+                        fprintf(stderr,"erreur malloc filename\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    memcpy(filename, optarg, strlen(optarg));
+                    filename[strlen(optarg)] = '\0';
                     is_file = 1;
                     break;
                 default:
@@ -34,12 +39,12 @@ int main(int argc, char** argv){
         fprintf(stderr, "Usage : receiver < -f filename > [ address ] [ port ]\n");
         return EXIT_FAILURE;
     }
-
     if(is_file && access(filename, F_OK ) != -1 ){
         if((file = fopen(filename,"r")) == NULL){
             fprintf(stderr,"error: open file \n");
             exit(EXIT_FAILURE);
         }
+        free(filename);
     }else{
         file = stdin;
     }
@@ -64,6 +69,7 @@ int main(int argc, char** argv){
     // free liste and close file
     if(file != stdin) fclose(file);
     delete_all_list(&list_pkts);
+    exit(EXIT_SUCCESS);
 }
 
 void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
@@ -80,6 +86,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
         fprintf(stderr, "error with transformation FILE* into file descriptor\n");
         return;
     }
+    fprintf(stderr, "file descriptor: %d\n",fileDescriptor);
     int rto = INIT_RTO;
     struct pollfd fds[2];
     /* Open STREAMS device. */
@@ -101,7 +108,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
             if (fds[1].revents & POLLIN) {
                 fprintf(stderr,"Lecture socket\n");
                 pkt_receive = pkt_new();
-                headerLength = sizeof(pkt_receive->header);
+                headerLength = sizeof(*pkt_receive);
                 char buffIn[headerLength];
                 if((int)(toReturn = read(sfd,buffIn,headerLength)) == -1){
                     fprintf(stderr, "Error read");
@@ -111,13 +118,16 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     continue;
                 }
                 if(pkt_get_type(pkt_receive) == PTYPE_ACK){
+                    fprintf(stderr,"ACK\n");
                     int ancienDebutWindow = debutWindow;
                     int  nbAckRecive;
                     if((nbAckRecive = check_window_sequence_and_delete_packet(window,&debutWindow,pkt_receive->header.seqnum,list_pkts)) > 0){
                         nbPacketSend -=  nbAckRecive;
                         actual_size_window = pkt_get_window(pkt_receive);
                         fprintf(stderr,"sequence number to delete [%d -> %d[\n",ancienDebutWindow, debutWindow);
-                        if(lastPacketSend && (nbPacketSend == 0)) break;
+                        fprintf(stderr,"nbpacket send last: %d -> %d",lastPacketSend,nbPacketSend);
+                        /* three way
+                        if(lastPacketSend && (nbPacketSend == 0)) break;*/
                     }
                 }else{
                     uint8_t pkt_to_resend = pkt_receive->header.seqnum;
@@ -134,21 +144,24 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                 }
             }
             if (fds[0].revents & POLLIN) {
-                if( nbPacketSend <= actual_size_window  || lastPacketSend){
+                if( nbPacketSend <= actual_size_window  && !lastPacketSend){
                     toReturn = 0;
                     fprintf(stderr,"Lecture stdin\n");
                     pkt_send = (pkt_t *)pkt_new();
                     pkt_set_type(pkt_send,PTYPE_DATA);
                     pkt_set_tr(pkt_send,0);
-                    toReturn = fread(bufOut, 1,MAX_PAYLOAD_SIZE, file);
+                    toReturn = read(fileDescriptor,bufOut,MAX_PAYLOAD_SIZE);
+                    fprintf(stderr,"read -> %ld  \n",toReturn);
                     // last packet send
-                    if(feof(stdin)){
+                    if(toReturn == 0){
                         fprintf(stderr,"EOF stdin\n");
                         lastPacketSend = 1;
                         if(seqNum == 0){
                             seqNum = 255;
+                        }else{
+                            seqNum -= 1;
                         }
-                        pkt_set_seqnum(pkt_send,seqNum-1);
+                        pkt_set_seqnum(pkt_send,seqNum);
                         pkt_set_length(pkt_send,0);
                     }else{
                         pkt_set_length(pkt_send,toReturn);
@@ -157,20 +170,21 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     }
                     pkt_set_window(pkt_send,actual_size_window);
                     pkt_set_timestamp(pkt_send,(unsigned)time(NULL));
-                    size_t length_pkt = sizeof(*pkt_send);
+                    size_t length_pkt = sizeof(*pkt_send)+pkt_get_length(pkt_send);
                     char  to_send[length_pkt];
-                    if(pkt_encode(pkt_send,to_send,&length_pkt)!= PKT_OK){
+                    if(pkt_encode(pkt_send,to_send,&length_pkt) != PKT_OK){
                         fprintf(stderr,"error encode pkt send\n");
                     }
                     window[seqNum]= WAIT_ACK;
                     add_packet_to_index(seqNum,pkt_send,list_pkts);
                     next_seqnum(&seqNum);
-                    if((int)write(sfd,to_send,length_pkt) == -1){
+                    int writed ;
+                    if((writed = write(sfd,to_send,length_pkt)) == -1){
                         fprintf(stderr, "Error write");
                         break;
                     }
                     nbPacketSend++;
-                    fprintf(stderr,"Lecture stdin -> sent to server %d bytes\n", (int)strlen(to_send));
+                    fprintf(stderr,"Lecture stdin -> sent to server  seq: %d  -> %ld -> %d bytes\n",pkt_get_seqnum(pkt_send),length_pkt, writed);
                 }            
             }
         }
@@ -201,16 +215,17 @@ void check_retransmission_time_out(list_pkt list,uint8_t debutWindow,int actual_
     pkt_t* pkt ;
     uint8_t compteur = 0;
     while(compteur < actual_size_window){
-        pkt = get_packet_to_index(seqNum,list);
-        next_seqnum(&seqNum);
-        if(difftime(time(NULL),pkt_get_timestamp(pkt)) > rto){
+        if((pkt = get_packet_to_index(seqNum,list)) != NULL){
+            if(difftime(time(NULL),pkt_get_timestamp(pkt)) > rto){
             size_t length_pkt_to_resend = sizeof(*pkt);
             char  to_resend[length_pkt_to_resend];
             pkt_encode(pkt,to_resend,&length_pkt_to_resend);
-            if((int)write(sfd,to_resend,length_pkt_to_resend) == -1){
-                fprintf(stderr, "Error write");
-            } 
+                if((int)write(sfd,to_resend,length_pkt_to_resend) == -1){
+                    fprintf(stderr, "Error write");
+                } 
+            }
         }
+        next_seqnum(&seqNum);
         compteur++;
     }
 }
