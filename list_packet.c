@@ -15,7 +15,7 @@ pkt_t* get_packet_to_index(int index_pkt, list_pkt list){
     return (list.pkts)[index_pkt];
 }
 void delete_pkt_to_index(int index_pkt, list_pkt* list){
-    fprintf(stderr,"seqNum to delete %d",(*(list->pkts+index_pkt))->header.seqnum);
+    fprintf(stderr,"seqNum to delete %d\n",(*(list->pkts+index_pkt))->header.seqnum);
     if((*(list->pkts+index_pkt)) == NULL){
         fprintf(stderr,"packet is already deleted\n");
         return;

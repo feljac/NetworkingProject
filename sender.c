@@ -69,6 +69,7 @@ int main(int argc, char** argv){
     // free liste and close file
     if(file != stdin) fclose(file);
     delete_all_list(&list_pkts);
+    fprintf(stderr,"delete buffer and close file\n");
     exit(EXIT_SUCCESS);
 }
 
@@ -89,24 +90,68 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
     fprintf(stderr, "file descriptor: %d\n",fileDescriptor);
     int rto = INIT_RTO;
     struct pollfd fds[2];
+    int compteurRTO = MAX_COMPTEUR_RTO;
     /* Open STREAMS device. */
-    fds[0].fd = fileDescriptor;
-    fds[1].fd =sfd;
-    fds[0].events = POLLIN;
-    fds[1].events = POLLIN;
+    
     size_t toReturn;
     pkt_t* pkt_send;
     pkt_t* pkt_receive;
     size_t bufSize = MAX_PAYLOAD_SIZE;
     char bufOut[bufSize];
     int ret;
+    int nbrFile = 1;
+    fds[0].fd = sfd;
+    fds[0].events = POLLIN;
     fprintf(stderr,"read/write\n");
     while(1){
-        check_retransmission_time_out(*list_pkts,debutWindow,actual_size_window,sfd,rto);
-        ret = poll(fds, 2, rto);
+        ret = poll(fds, nbrFile, rto);
+        if( nbPacketSend <= actual_size_window  && !lastPacketSend){
+                toReturn = 0;
+                fprintf(stderr,"\nRead stdin\n");
+                pkt_send = (pkt_t *)pkt_new();
+                pkt_set_type(pkt_send,PTYPE_DATA);
+                pkt_set_tr(pkt_send,0);
+                fprintf(stderr,"read\n");
+                toReturn = read(fileDescriptor,bufOut,MAX_PAYLOAD_SIZE);
+                fprintf(stderr,"read -> %ld  \n",toReturn);
+                // last packet send
+                if(toReturn == 0){
+                    fprintf(stderr,"EOF stdin\n");
+                    lastPacketSend = 1;
+                    if(seqNum == 0){
+                        seqNum = 255;
+                    }else{
+                        seqNum -= 1;
+                    }
+                    pkt_set_seqnum(pkt_send,seqNum);
+                    pkt_set_length(pkt_send,0);
+                    next_seqnum(&seqNum);
+                }else{
+                    pkt_set_length(pkt_send,toReturn);
+                    pkt_set_payload(pkt_send,bufOut,toReturn);
+                    pkt_set_seqnum(pkt_send,seqNum);
+                }
+                pkt_set_window(pkt_send,actual_size_window);
+                pkt_set_timestamp(pkt_send,(unsigned)time(NULL));
+                size_t length_pkt = sizeof(*pkt_send)+pkt_get_length(pkt_send);
+                char  to_send[length_pkt];
+                if(pkt_encode(pkt_send,to_send,&length_pkt) != PKT_OK){
+                    fprintf(stderr,"error encode pkt send\n");
+                }
+                window[seqNum]= WAIT_ACK;
+                add_packet_to_index(seqNum,pkt_send,list_pkts);
+                next_seqnum(&seqNum);
+                int writed ;
+                if((writed = write(sfd,to_send,length_pkt)) == -1){
+                    fprintf(stderr, "Error write\n");
+                    break;
+                }
+                nbPacketSend++;
+                fprintf(stderr,"sent to server  seq: %d  -> %ld -> %d bytes\n",pkt_get_seqnum(pkt_send),length_pkt, writed);
+            }            
         if(ret > 0){
-            if (fds[1].revents & POLLIN) {
-                fprintf(stderr,"Lecture socket\n");
+            if (fds[0].revents & POLLIN) {
+                fprintf(stderr,"\nRead socket\n");
                 pkt_receive = pkt_new();
                 headerLength = sizeof(*pkt_receive);
                 char buffIn[headerLength];
@@ -118,84 +163,55 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     continue;
                 }
                 if(pkt_get_type(pkt_receive) == PTYPE_ACK){
-                    fprintf(stderr,"ACK\n");
+                    fprintf(stderr,"receive an ACK\n");
+                    compteurRTO = MAX_COMPTEUR_RTO;
                     int ancienDebutWindow = debutWindow;
-                    int  nbAckRecive;
-                    if((nbAckRecive = check_window_sequence_and_delete_packet(window,&debutWindow,pkt_receive->header.seqnum,list_pkts)) > 0){
-                        nbPacketSend -=  nbAckRecive;
+                    int  nbAckReceive;
+                    if((nbAckReceive = check_window_sequence_and_delete_packet(window,&debutWindow,pkt_receive->header.seqnum,list_pkts)) > 0){
+                        nbPacketSend -=  nbAckReceive;
                         actual_size_window = pkt_get_window(pkt_receive);
+                        fprintf(stderr,"nb paquet deleted %d\n",nbAckReceive);
                         fprintf(stderr,"sequence number to delete [%d -> %d[\n",ancienDebutWindow, debutWindow);
-                        fprintf(stderr,"nbpacket send last: %d -> %d",lastPacketSend,nbPacketSend);
-                        /* three way
-                        if(lastPacketSend && (nbPacketSend == 0)) break;*/
+                        fprintf(stderr,"nbpacket send last: %d -> nbPacket :%d\n",lastPacketSend,nbPacketSend);
+                        if(lastPacketSend && (nbPacketSend == 0)) break;
                     }
                 }else{
+                    fprintf(stderr,"receive an NACK\n");
                     uint8_t pkt_to_resend = pkt_receive->header.seqnum;
+                    fprintf(stderr,"packet to resend : %d \n",pkt_to_resend);
                     pkt_t* pkt = get_packet_to_index(pkt_to_resend,*list_pkts);
-                    size_t length_pkt_to_resend = sizeof(*pkt);
+                    size_t length_pkt_to_resend = sizeof(*pkt)+pkt_get_length(pkt);
                     char  to_resend[length_pkt_to_resend];
                     if (pkt_encode(pkt,to_resend,&length_pkt_to_resend) != PKT_OK){
                         fprintf(stderr,"error encode pkt recive\n");
                     }
                     if((int)write(sfd,to_resend,length_pkt_to_resend) == -1){
-                        fprintf(stderr, "Error write");
+                        fprintf(stderr, "Error write\n");
                     }
-                    fprintf(stderr,"receive NACK send all data with no ACK \n");
+                    fprintf(stderr,"receive NACK send packet \n");
                 }
             }
-            if (fds[0].revents & POLLIN) {
-                if( nbPacketSend <= actual_size_window  && !lastPacketSend){
-                    toReturn = 0;
-                    fprintf(stderr,"Lecture stdin\n");
-                    pkt_send = (pkt_t *)pkt_new();
-                    pkt_set_type(pkt_send,PTYPE_DATA);
-                    pkt_set_tr(pkt_send,0);
-                    toReturn = read(fileDescriptor,bufOut,MAX_PAYLOAD_SIZE);
-                    fprintf(stderr,"read -> %ld  \n",toReturn);
-                    // last packet send
-                    if(toReturn == 0){
-                        fprintf(stderr,"EOF stdin\n");
-                        lastPacketSend = 1;
-                        if(seqNum == 0){
-                            seqNum = 255;
-                        }else{
-                            seqNum -= 1;
-                        }
-                        pkt_set_seqnum(pkt_send,seqNum);
-                        pkt_set_length(pkt_send,0);
-                    }else{
-                        pkt_set_length(pkt_send,toReturn);
-                        pkt_set_payload(pkt_send,bufOut,toReturn);
-                        pkt_set_seqnum(pkt_send,seqNum);
-                    }
-                    pkt_set_window(pkt_send,actual_size_window);
-                    pkt_set_timestamp(pkt_send,(unsigned)time(NULL));
-                    size_t length_pkt = sizeof(*pkt_send)+pkt_get_length(pkt_send);
-                    char  to_send[length_pkt];
-                    if(pkt_encode(pkt_send,to_send,&length_pkt) != PKT_OK){
-                        fprintf(stderr,"error encode pkt send\n");
-                    }
-                    window[seqNum]= WAIT_ACK;
-                    add_packet_to_index(seqNum,pkt_send,list_pkts);
-                    next_seqnum(&seqNum);
-                    int writed ;
-                    if((writed = write(sfd,to_send,length_pkt)) == -1){
-                        fprintf(stderr, "Error write");
-                        break;
-                    }
-                    nbPacketSend++;
-                    fprintf(stderr,"Lecture stdin -> sent to server  seq: %d  -> %ld -> %d bytes\n",pkt_get_seqnum(pkt_send),length_pkt, writed);
-                }            
+            
+        } else if(ret == 0){ // retransmission timeout
+            if(check_retransmission_time_out(*list_pkts,debutWindow,actual_size_window,sfd,rto, &compteurRTO)){
+                break;
             }
         }
+
     }
 }
 // return the number of ACK receive
 int check_window_sequence_and_delete_packet(int* window,uint8_t* debutWindow,uint8_t index, list_pkt* list){
     if(compare_seqnum(*debutWindow,index) > MAX_WINDOW_SIZE -1 || compare_seqnum(*debutWindow,index) <= 0 ) return 0;
     uint8_t i = *debutWindow;
+    if(index == 0){
+        window[255] = ACK;
+    } else{
+    window[index-1] = ACK;
+    }
     int compteur = 0;
     while(i != index){
+        if(window[i] == WAIT_ACK) break;
         window[i] = NOT_DEFINE;
         delete_pkt_to_index(i,list);
         next_seqnum(&i);
@@ -210,22 +226,30 @@ void delete_all_list(list_pkt* list){
     }
     free(list->pkts);
 }
-void check_retransmission_time_out(list_pkt list,uint8_t debutWindow,int actual_size_window,const int sfd, int rto){
+// return 1 if the compteurRto is 0
+int check_retransmission_time_out(list_pkt list,uint8_t debutWindow,int actual_size_window,const int sfd, int rto,int* compteurRto){
+    if(*compteurRto == 0)  return 1;
     uint8_t seqNum = debutWindow;
     pkt_t* pkt ;
     uint8_t compteur = 0;
     while(compteur < actual_size_window){
         if((pkt = get_packet_to_index(seqNum,list)) != NULL){
-            if(difftime(time(NULL),pkt_get_timestamp(pkt)) > rto){
-            size_t length_pkt_to_resend = sizeof(*pkt);
+            fprintf(stderr,"time %f > rto %d",difftime(time(NULL),pkt_get_timestamp(pkt))*1000,rto );
+            if(difftime(time(NULL),pkt_get_timestamp(pkt))*1000 >= rto){
+            size_t length_pkt_to_resend = sizeof(*pkt)+pkt_get_length(pkt);
             char  to_resend[length_pkt_to_resend];
             pkt_encode(pkt,to_resend,&length_pkt_to_resend);
                 if((int)write(sfd,to_resend,length_pkt_to_resend) == -1){
                     fprintf(stderr, "Error write");
-                } 
+                }
+                fprintf(stderr, "resend packet %d \n",seqNum); 
+            }else{
+                fprintf(stderr, "timer not expire\n");
             }
         }
         next_seqnum(&seqNum);
         compteur++;
     }
+    (*compteurRto)--;
+    return 0;
 }
