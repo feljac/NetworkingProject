@@ -8,28 +8,44 @@ int main(int argc, char** argv){
     int port;
 	char *host;
     FILE* file;
-    char** fileName;
+    char filename[50];
     list_pkt list_pkts;
-    
+    int is_file = 0;
+    int c;
 
-    if(argc == 1 || argc > 4){
-        fprintf(stderr,"need or a lot of arguments\n");
-        exit(EXIT_FAILURE);
+     if (argc >= 4) {
+        while ((c = getopt(argc, argv, "f:")) != -1) {
+            switch (c) {
+                case 'f':
+                    memcpy(&filename, optarg, strlen(optarg));
+                    is_file = 1;
+                    break;
+                default:
+                    fprintf(stderr, "Usage : receiver < -f filename > [ address ] [ port ]\n");
+                    return EXIT_FAILURE;
+            }
+        }
     }
-    if(argc < 4){
-        fileName = (char**) get_file_by_name(argc,argv);
-        if((file = fopen(*fileName,"r")) == NULL){
+
+    argc -= optind;
+    argv += optind;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage : receiver < -f filename > [ address ] [ port ]\n");
+        return EXIT_FAILURE;
+    }
+
+    if(is_file && access(filename, F_OK ) != -1 ){
+        if((file = fopen(filename,"r")) == NULL){
             fprintf(stderr,"error: open file \n");
             exit(EXIT_FAILURE);
         }
-        port = atoi(argv[0]);
-        host = argv[1];
-
     }else{
-        port = atoi(argv[1]);
-        host = argv[2];
         file = stdin;
     }
+    port = atoi(argv[1]);
+    host = argv[0];
+
     // Initiation buffer
     if(!init_list(256,&list_pkts)){
         fprintf(stderr,"erreur init buffer packets\n");
