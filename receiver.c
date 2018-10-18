@@ -141,7 +141,7 @@ void receive_data_from_socket(FILE* file, int socket){
     init_stack(&sorted_stack);
 
     struct pollfd fds[1];
-    fds[0].fd = 0;
+    fds[0].fd = socket;
     fds[0].events = POLLIN;
 
     while(is_receiving){
