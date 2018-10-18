@@ -169,7 +169,7 @@ void receive_data_from_socket(FILE* file, int socket){
                 fprintf(stderr, "End of data\n");
                 if(last_seqnum_written == pkt_get_seqnum(pkt)){
                     is_receiving = 0;
-                    send_message(socket, 0, pkt_get_seqnum(pkt), window, last_timestamp);
+                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
                     pkt_del(pkt);
                 }
                 else{
