@@ -9,7 +9,7 @@ int main(int argc, char** argv){
     int port;
     char *host;
     FILE* file;
-    char filename[50];
+    char* filename = NULL;
     int c;
     const char *err;
     struct sockaddr_in6 addr;
@@ -19,7 +19,12 @@ int main(int argc, char** argv){
         while ((c = getopt(argc, argv, "f:")) != -1) {
             switch (c) {
                 case 'f':
-                    memcpy(&filename, optarg, strlen(optarg));
+                    if((filename = malloc(strlen(optarg)+1)) == NULL){
+                        fprintf(stderr,"erreur malloc filename\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    memcpy(filename, optarg, strlen(optarg));
+                    filename[strlen(optarg)] = '\0';
                     is_file = 1;
                     break;
                 default:
@@ -68,17 +73,17 @@ int main(int argc, char** argv){
     receive_data_from_socket(file, sfd);
 }
 
-void send_message(int socket, uint8_t tr,uint8_t last_seqnum, uint8_t window, uint32_t last_timestamp){
+void send_message(int socket, uint8_t tr,uint8_t seqnum, uint8_t window, uint32_t last_timestamp){
     pkt_t* pkt = pkt_new();
     if(tr == 1){
-        fprintf(stderr, "Sending NACK\n");
+        fprintf(stderr, "Sending NACK : %d\n", seqnum);
         pkt_set_type(pkt, PTYPE_NACK);
     }
     else{
-        fprintf(stderr, "Sending ACK\n");
+        fprintf(stderr, "Sending ACK %d\n", seqnum);
         pkt_set_type(pkt, PTYPE_ACK);
     }
-    pkt_set_seqnum(pkt, last_seqnum);
+    pkt_set_seqnum(pkt, seqnum);
     pkt_set_window(pkt, window);
     pkt_set_timestamp(pkt, last_timestamp);
     size_t length = PKT_LENGTH;
