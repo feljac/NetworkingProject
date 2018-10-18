@@ -19,7 +19,7 @@
 
 char** get_file_by_name(int argc, char** argv);
 void read_write_loop(const int sfd, FILE* file,list_pkt* list);
-uint8_t check_window_sequence(int* window, uint8_t debutWindow,uint8_t index, int actual_window_size);
+int check_window_sequence_and_delete_packet(int* window, uint32_t* debutWindow,uint32_t index,list_pkt* list);
 void delete_all_list(list_pkt* list);
 
 #endif //NETWORKING_PROJECT_SENDER_H

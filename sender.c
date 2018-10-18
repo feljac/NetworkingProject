@@ -31,7 +31,7 @@ int main(int argc, char** argv){
         file = stdin;
     }
     // Initiation buffer
-    if(!init_list(MAX_WINDOW_SIZE,&list_pkts)){
+    if(!init_list(256,&list_pkts)){
         fprintf(stderr,"erreur init buffer packets\n");
         exit(EXIT_FAILURE);
     }
@@ -58,15 +58,13 @@ char** get_file_by_name(int argc, char** argv){
 }
 void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
 
-    int window[255]={0};
+    int window[256]={0};
     uint32_t debutWindow = 0;
     int actual_size_window = MAX_WINDOW_SIZE;
     int lastPacketSend = 0;
     int nbPacketSend  = 0;
     uint8_t seqNum = 0;
     size_t headerLength;
-    int indexReceive = 0;
-    int indexSend = 0;
     int fileDescriptor;
     if((fileDescriptor = fileno(file)) == -1){
         fprintf(stderr, "error with transformation FILE* into file descriptor\n");
@@ -97,18 +95,20 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     fprintf(stderr, "Error read");
                 }
                 // decode header read
-                pkt_decode(buffIn,headerLength,pkt_receive);
+                if(pkt_decode(buffIn,headerLength,pkt_receive) == E_CRC){
+                    continue;
+                }
                 if(pkt_get_type(pkt_receive) == PTYPE_ACK){
-                    // TODO Calculer l'index
-                    indexReceive = 0;
-                    debutWindow = check_window_sequence(window,debutWindow,indexReceive,actual_size_window);
-                    actual_size_window = pkt_get_window(pkt_receive);
-                    fprintf(stderr,"sequence number to delete %d\n",pkt_receive->header.seqnum);
-                    delete_pkt_to_index( indexReceive,list_pkts);
-                    nbPacketSend--;
-                    if(lastPacketSend && (nbPacketSend == 0)) break;
+                    int ancienDebutWindow = debutWindow;
+                    int  nbAckRecive;
+                    if((nbAckRecive = check_window_sequence_and_delete_packet(window,&debutWindow,pkt_receive->header.seqnum,list_pkts)) > 0){
+                        nbPacketSend -=  nbAckRecive;
+                        actual_size_window = pkt_get_window(pkt_receive);
+                        fprintf(stderr,"sequence number to delete [%d -> %d[\n",ancienDebutWindow, debutWindow);
+                        if(lastPacketSend && (nbPacketSend == 0)) break;
+                    }
                 }else{
-                    int pkt_to_resend = pkt_receive->header.seqnum;
+                    uint8_t pkt_to_resend = pkt_receive->header.seqnum;
                     pkt_t* pkt = get_packet_to_index(pkt_to_resend,*list_pkts);
                     size_t length_pkt_to_resend = sizeof(*pkt);
                     char  to_resend[length_pkt_to_resend];
@@ -118,11 +118,10 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                 }
                 fprintf(stderr,"receive NACK send all data with no ACK \n ");
                 }
-                
             }
             if (fds[0].revents & POLLIN) {
                 // TODO Add timer      
-                if(actual_size_window != 0 || lastPacketSend){
+                if( nbPacketSend <= actual_size_window  || lastPacketSend){
                     toReturn = 0;
                     fprintf(stderr,"Lecture stdin\n");
                     pkt_send = (pkt_t *)pkt_new();
@@ -133,47 +132,48 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     if(feof(stdin)){
                         fprintf(stderr,"EOF stdin\n");
                         lastPacketSend = 1;
-                        if(seqNum == 0) seqNum = 255;
+                        if(seqNum == 0){
+                            seqNum = 255;
+                        }
+                        pkt_set_seqnum(pkt_send,seqNum-1);
                         pkt_set_length(pkt_send,0);
                     }else{
                         pkt_set_length(pkt_send,toReturn);
                         pkt_set_payload(pkt_send,bufOut,toReturn);
+                        pkt_set_seqnum(pkt_send,seqNum);
                     }
-                    pkt_set_seqnum(pkt_send,seqNum);
-                    next_seqnum(&seqNum);
                     pkt_set_window(pkt_send,actual_size_window);
                     pkt_set_timestamp(pkt_send,(unsigned)time(NULL));
                     size_t length_pkt = sizeof(*pkt_send);
                     char  to_send[length_pkt];
                     pkt_encode(pkt_send,to_send,&length_pkt);
+                    window[seqNum]= WAIT_ACK;
+                    add_packet_to_index(seqNum,pkt_send,list_pkts);
+                    next_seqnum(&seqNum);
                     if((int)write(sfd,to_send,length_pkt) == -1){
                         fprintf(stderr, "Error write");
+                        break;
                     }
                     nbPacketSend++;
-                    // TODO ADD IN LIST 
-                    indexSend = 0;
-                    window[indexSend]= WAIT_ACK;
-                    add_packet_to_index(indexSend,pkt_send,list_pkts);
                     fprintf(stderr,"Lecture stdin -> sent to server %d bytes\n", (int)strlen(to_send));
                 }            
             }
         }
     }
 }
-uint8_t check_window_sequence(int* window,uint8_t debutWindow,uint8_t index, int actual_size_window){
-    window[index] = ACK;   
-    if(index == debutWindow){
-        next_seqnum(&debutWindow);
-    }
-    uint8_t i = debutWindow;
+// return the number of ACK receive
+int check_window_sequence_and_delete_packet(int* window,uint32_t* debutWindow,uint32_t index, list_pkt* list){
+    if(compare_seqnum(*debutWindow,index) > MAX_WINDOW_SIZE -1 || compare_seqnum(*debutWindow,index) <= 0 ) return 0;
+    uint8_t i = *debutWindow;
     int compteur = 0;
-    while(window[i] != WAIT_ACK){
+    while(i != index){
         window[i] = NOT_DEFINE;
+        delete_pkt_to_index(i,list);
         next_seqnum(&i);
-        if(compteur == actual_size_window) break; 
         compteur++;
     }
-    return i;
+    *debutWindow = i;
+    return compteur;
 }
 void delete_all_list(list_pkt* list){
     for(pkt_t** pkts = list->pkts;pkts - list->pkts < MAX_WINDOW_SIZE;pkts++){
