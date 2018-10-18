@@ -9,7 +9,7 @@ CFLAGS += -fstack-protector-all # Add canary code to detect stack smashing
 CFLAGS += -D_POSIX_C_SOURCE=201112L -D_XOPEN_SOURCE # feature_test_macros for getpot and getaddrinfo
 # We have no libraries to link against except libc, but we want to keep
 # the symbols for debugging
-LDFLAGS= -rdynamic 
+LDFLAGS= -rdynamic -lz
 
 # Default target
 all: clean sender receiver 
@@ -20,8 +20,8 @@ debug: CFLAGS += -g -DDEBUG -Wno-unused-parameter -fno-omit-frame-pointer
 debug: clean sender receiver
 
 # We use an implicit rule to build an executable named 'chat'
-sender: sender.o list_packet.o network.o packet_implem.o utils.o   -lz
-receiver: receiver.o network.o packet_implem.o utils.o sorted_queue.o  -lz 
+sender: sender.o list_packet.o network.o packet_implem.o utils.o
+receiver: receiver.o network.o packet_implem.o utils.o sorted_queue.o
 
 .PHONY: clean
 

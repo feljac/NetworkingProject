@@ -9,42 +9,60 @@ int main(int argc, char** argv){
     int port;
     char *host;
     FILE* file;
-    char** fileName;
-    /* pkt_t ** windows;
-     int * window_seq_num;
-     int taillePhysiqueWindow;
- */
+    char filename[50];
+    int c;
+    const char *err;
+    struct sockaddr_in6 addr;
+    int is_file = 0;
+
+    if (argc >= 4) {
+        while ((c = getopt(argc, argv, "f:")) != -1) {
+            switch (c) {
+                case 'f':
+                    memcpy(&filename, optarg, strlen(optarg));
+                    is_file = 1;
+                    break;
+                default:
+                    fprintf(stderr, "Usage : receiver < -f filename > [ address ] [ port ]\n");
+                    return EXIT_FAILURE;
+            }
+        }
+    }
+
+    argc -= optind;
+    argv += optind;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage : receiver < -f filename > [ address ] [ port ]\n");
+        return EXIT_FAILURE;
+    }
+
     if(argc == 1 || argc > 4){
         fprintf(stderr,"need or a lot of arguments\n");
         exit(EXIT_FAILURE);
     }
-    if(argc < 4){
-        fileName = (char**) get_file_by_name(argc,argv);
-        if((file = fopen(*fileName,"r")) == NULL){
-            fprintf(stderr,"error: open file \n");
-            exit(EXIT_FAILURE);
-        }
-        port = atoi(argv[0]);
-        host = argv[1];
 
-    }else{
-        port = atoi(argv[1]);
-        host = argv[2];
-        file = stdin;
-    }
-    struct sockaddr_in6 addr;
-    const char *err = real_address(host, &addr);
+    port = atoi(argv[1]);
+    host = argv[0];
+
+    err = real_address(host, &addr);
     if (err) {
         fprintf(stderr, "Could not resolve hostname %s: %s\n", host, err);
         return EXIT_FAILURE;
     }
 
-    /* Get a socket */
     int sfd = create_socket(NULL, -1, &addr, port); /* Connected */
 
     if(!sfd || wait_for_client(sfd) == -1){
-        fprintf(stderr, "Error waiting for client");
+        fprintf(stderr, "Error waiting for client\n");
         return EXIT_FAILURE;
+    }
+
+    if(is_file){
+        file = fopen(filename, "w");
+    }
+    else{
+        file = stdin;
     }
 
     receive_data_from_socket(file, sfd);
