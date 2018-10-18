@@ -6,6 +6,9 @@
         fprintf(stderr,"error with creation buffer \n");
         return 0;
     }
+    for(int i = 0;i < sizeListe;i++){
+        *(list->pkts+i) = NULL;
+    }
     return 1;
 }
 pkt_t* get_packet_to_index(int index_pkt, list_pkt list){
