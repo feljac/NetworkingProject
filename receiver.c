@@ -63,7 +63,6 @@ void send_message(int socket, uint8_t tr,uint8_t last_seqnum, uint8_t window, ui
     pkt_set_seqnum(pkt, last_seqnum);
     pkt_set_window(pkt, window);
     pkt_set_timestamp(pkt, last_timestamp);
-    pkt_set_crc1(pkt, generate_crc1(pkt));
     size_t length = PKT_LENGTH;
     char* buffer = malloc(PKT_LENGTH);
     if(pkt_encode(pkt, buffer, &length) != PKT_OK){
