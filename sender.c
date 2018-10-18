@@ -41,13 +41,7 @@ int main(int argc, char** argv){
 	int sfd = create_socket(NULL, -1, &addr, port); /* Connected */
     read_write_loop(sfd, file);
 }
-char** get_file_by_name(int argc, char** argv){
-    int opt;
-    if ((opt = getopt(argc, argv, "f:")) != -1) {
-            return &optarg;
-    }
-    return NULL;
-}
+
 void read_write_loop(const int sfd,FILE* file){
 
     int fileDescriptor;

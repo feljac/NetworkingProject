@@ -4,16 +4,63 @@
 
 #include "receiver.h"
 
+
+int main(int argc, char** argv){
+    int port;
+    char *host;
+    FILE* file;
+    char** fileName;
+    /* pkt_t ** windows;
+     int * window_seq_num;
+     int taillePhysiqueWindow;
+ */
+    if(argc == 1 || argc > 4){
+        fprintf(stderr,"need or a lot of arguments\n");
+        exit(EXIT_FAILURE);
+    }
+    if(argc < 4){
+        fileName = (char**) get_file_by_name(argc,argv);
+        if((file = fopen(*fileName,"r")) == NULL){
+            fprintf(stderr,"error: open file \n");
+            exit(EXIT_FAILURE);
+        }
+        port = atoi(argv[0]);
+        host = argv[1];
+
+    }else{
+        port = atoi(argv[1]);
+        host = argv[2];
+        file = stdin;
+    }
+    struct sockaddr_in6 addr;
+    const char *err = real_address(host, &addr);
+    if (err) {
+        fprintf(stderr, "Could not resolve hostname %s: %s\n", host, err);
+        return EXIT_FAILURE;
+    }
+
+    /* Get a socket */
+    int sfd = create_socket(NULL, -1, &addr, port); /* Connected */
+
+    if(!sfd || wait_for_client(sfd) == -1){
+        fprintf(stderr, "Error waiting for client");
+        return EXIT_FAILURE;
+    }
+
+    receive_data_from_socket(file, sfd);
+}
+
 void send_message(int socket, uint8_t tr,uint8_t last_seqnum, uint8_t window, uint32_t last_timestamp){
     pkt_t* pkt = pkt_new();
     if(tr == 1){
         fprintf(stderr, "Sending NACK");
-        pkt_set_seqnum(pkt, PTYPE_NACK);
+        pkt_set_type(pkt, PTYPE_NACK);
     }
     else{
         fprintf(stderr, "Sending ACK");
-        pkt_set_seqnum(pkt, PTYPE_ACK);
+        pkt_set_type(pkt, PTYPE_ACK);
     }
+    pkt_set_seqnum(pkt, last_seqnum);
     pkt_set_window(pkt, window);
     pkt_set_timestamp(pkt, last_timestamp);
     pkt_set_crc1(pkt, generate_crc1(pkt));
@@ -49,7 +96,6 @@ void write_to_file(FILE* file, struct stack ** sorted_stack, uint8_t* last_seqnu
 
 void receive_data_from_socket(FILE* file, int socket){
     int is_receiving = 1;
-    int something_received = 0;
     ssize_t read_size = 0;
     uint8_t  tr = 0;
     uint8_t min_seqnum_received = 0;
@@ -138,8 +184,4 @@ void receive_data_from_socket(FILE* file, int socket){
             }
         }
     }
-}
-
-int main(int argc, char** argv){
-
 }

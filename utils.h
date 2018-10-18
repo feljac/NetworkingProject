@@ -4,6 +4,7 @@
 
 #include "packet_interface.h"
 #include "sorted_queue.h"
+#include "network.h"
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/poll.h>
@@ -15,7 +16,7 @@
 #ifndef NETWORKING_PROJECT_UTILS_H
 #define NETWORKING_PROJECT_UTILS_H
 
-#define MAX_SEQNUM 255
+#define MAX_SEQNUM 256
 #define PKT_LENGTH sizeof(pkt_t)
 
 int compare_seqnum(uint8_t a, uint8_t b);
@@ -27,5 +28,7 @@ uint32_t generate_crc1(pkt_t * pkt);
 int sorted_queue_compare_seqnum(uint8_t a, uint8_t b);
 
 void write_in_file(FILE* file, pkt_t* pkt);
+
+char** get_file_by_name(int argc, char** argv);
 
 #endif //NETWORKING_PROJECT_UTILS_H
