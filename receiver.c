@@ -98,19 +98,31 @@ void send_message(int socket, uint8_t tr,uint8_t seqnum, uint8_t window, uint32_
     pkt_del(pkt);
 }
 
-void write_to_file(FILE* file, struct stack ** sorted_stack, uint8_t* last_seqnum_written, uint8_t* window){
+void write_to_file(FILE* file, int socket, struct stack ** sorted_stack, uint8_t* tr, uint32_t* last_timestamp, uint8_t* min_seqnum_received, uint8_t* last_seqnum_written, uint8_t* window){
+    fprintf(stderr, "Write to file\n");
+    int writed;
     pkt_t* pkt = peek(sorted_stack);
+    if(pkt && pkt_get_length(pkt) == 0 && *last_seqnum_written != pkt_get_seqnum(pkt)){
+        return;
+    }
     while(pkt && compare_seqnum(*last_seqnum_written, pkt_get_seqnum(pkt)) == 1){
         size_t length = PKT_LENGTH + pkt_get_length(pkt);
         char* buffer = malloc(PKT_LENGTH + pkt_get_length(pkt));
         if(pkt_encode(pkt, buffer, &length) != PKT_OK){
             fprintf(stderr, "Error encode message\n");
         }
-        fwrite(buffer, length, 1, file);
-        *last_seqnum_written = pkt_get_seqnum(pkt);
+        writed = fwrite(buffer, length, 1, file);
+        fprintf(stderr, "to write : %ld -> %d\n", length, writed);
+        next_seqnum(last_seqnum_written);
+        next_seqnum(min_seqnum_received);
+
+        fprintf(stderr, "Next packet : %d\n", *min_seqnum_received);
+        *tr = pkt_get_tr(pkt);
+        *last_timestamp = pkt_get_timestamp(pkt);
         (*window)++;
         pop(sorted_stack);
         pkt_del(pkt);
+        send_message(socket, *tr, *min_seqnum_received, *window, *last_timestamp);
         pkt = peek(sorted_stack);
     }
 }
@@ -128,21 +140,19 @@ void receive_data_from_socket(FILE* file, int socket){
     struct stack* sorted_stack;
     init_stack(&sorted_stack);
 
-    struct pollfd fds[1] = {{socket, POLLIN |POLLPRI | POLLOUT, 0}};
+    struct pollfd fds[1];
+    fds[0].fd = 0;
+    fds[0].events = POLLIN;
 
     while(is_receiving){
-
-        write_to_file(file, &sorted_stack, &last_seqnum_written, &window);
-        if(compare_seqnum(min_seqnum_received, last_seqnum_written) > 0){
-            min_seqnum_received = last_seqnum_written;
-            next_seqnum(&min_seqnum_received);
-        }
-
+        write_to_file(file, socket, &sorted_stack, &tr, &last_timestamp, &min_seqnum_received, &last_seqnum_written, &window);
+        fprintf(stderr, "POLL START\n");
         if(poll(fds, 1, -1) == -1){
             fprintf(stderr, "Error poll\n");
             continue;
         }
-        if(fds[0].revents & (POLLPRI | POLLIN)){
+        fprintf(stderr, "POLL OK\n");
+        if(fds[0].revents & POLLIN){
 
             if((read_size = read(socket, buffer, sizeof(pkt_t) + MAX_PAYLOAD_SIZE)) == -1){
                 fprintf(stderr, "Error read on socket\n");
@@ -178,7 +188,7 @@ void receive_data_from_socket(FILE* file, int socket){
                     pkt_del(pkt);
                 }
                 else{
-                    sorted_insert(&sorted_stack, *pkt);
+                    sorted_insert(&sorted_stack, pkt);
                 }
             }
             /* if tr == 1 and header is correct send nack */
@@ -195,6 +205,7 @@ void receive_data_from_socket(FILE* file, int socket){
                 last_timestamp = pkt_get_timestamp(pkt);
                 fprintf(stderr, "Valid pkt received : %d\n", pkt_get_seqnum(pkt));
                 if(pkt_get_seqnum(pkt) == min_seqnum_received){
+                    fprintf(stderr, "Good sequence packet\n");
                     size_t length = pkt_get_length(pkt);
                     int writed;
                     if((writed = fwrite(pkt->payload, 1, length, file)) == -1){
@@ -206,7 +217,7 @@ void receive_data_from_socket(FILE* file, int socket){
                     fprintf(stderr, "Next packet : %d\n", min_seqnum_received);
                 }
                 else{
-                    sorted_insert(&sorted_stack, *pkt);
+                    sorted_insert(&sorted_stack, pkt);
                     window--;
                 }
                 send_message(socket, tr, min_seqnum_received, window, last_timestamp);

@@ -13,7 +13,7 @@
 
 struct stack
 {
-    pkt_t pkt;
+    pkt_t* pkt;
     struct stack *next;
 };
 
@@ -24,19 +24,19 @@ void init_stack(struct stack **s);
 int is_empty(struct stack *s);
 
 // Utility function to push an item to stack
-void push(struct stack **s, pkt_t pkt);
+void push(struct stack **s, pkt_t* pkt);
 
 // Utility function to look at an item from stack
 pkt_t* peek(struct stack **s);
 
 // Utility function to remove an item from stack
-pkt_t pop(struct stack **s);
+pkt_t* pop(struct stack **s);
 
 // Function to find top item
-pkt_t top(struct stack *s);
+pkt_t* top(struct stack *s);
 
 // Recursive function to insert an item x in sorted way
-void sorted_insert(struct stack **s, pkt_t pkt);
+void sorted_insert(struct stack **s, pkt_t* pkt);
 
 // Function to sort stack
 void sort_stack(struct stack **s);
