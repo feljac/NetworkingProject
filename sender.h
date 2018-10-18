@@ -20,7 +20,6 @@
 // retransmition timeout
 #define INIT_RTO 2000
 
-char** get_file_by_name(int argc, char** argv);
 void read_write_loop(const int sfd, FILE* file,list_pkt* list);
 int check_window_sequence_and_delete_packet(int* window, uint8_t* debutWindow,uint8_t index,list_pkt* list);
 void delete_all_list(list_pkt* list);

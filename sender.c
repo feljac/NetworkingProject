@@ -50,14 +50,6 @@ int main(int argc, char** argv){
     delete_all_list(&list_pkts);
 }
 
-char** get_file_by_name(int argc, char** argv){
-    int opt;
-    if ((opt = getopt(argc, argv, "f:")) != -1) {
-            return &optarg;
-    }
-    return NULL;
-}
-
 void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
 
     int window[256]={0};
@@ -116,11 +108,13 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     pkt_t* pkt = get_packet_to_index(pkt_to_resend,*list_pkts);
                     size_t length_pkt_to_resend = sizeof(*pkt);
                     char  to_resend[length_pkt_to_resend];
-                    pkt_encode(pkt,to_resend,&length_pkt_to_resend);
-                if((int)write(sfd,to_resend,length_pkt_to_resend) == -1){
-                    fprintf(stderr, "Error write");
-                }
-                fprintf(stderr,"receive NACK send all data with no ACK \n ");
+                    if (pkt_encode(pkt,to_resend,&length_pkt_to_resend) != PKT_OK){
+                        fprintf(stderr,"error encode pkt recive\n");
+                    }
+                    if((int)write(sfd,to_resend,length_pkt_to_resend) == -1){
+                        fprintf(stderr, "Error write");
+                    }
+                    fprintf(stderr,"receive NACK send all data with no ACK \n");
                 }
             }
             if (fds[0].revents & POLLIN) {
@@ -149,7 +143,9 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     pkt_set_timestamp(pkt_send,(unsigned)time(NULL));
                     size_t length_pkt = sizeof(*pkt_send);
                     char  to_send[length_pkt];
-                    pkt_encode(pkt_send,to_send,&length_pkt);
+                    if(pkt_encode(pkt_send,to_send,&length_pkt)!= PKT_OK){
+                        fprintf(stderr,"error encode pkt send\n");
+                    }
                     window[seqNum]= WAIT_ACK;
                     add_packet_to_index(seqNum,pkt_send,list_pkts);
                     next_seqnum(&seqNum);

@@ -1,1 +1,0 @@
-/usr/bin/cc -g   CMakeFiles/Networking_Project.dir/receiver.c.o CMakeFiles/Networking_Project.dir/packet_implem.c.o CMakeFiles/Networking_Project.dir/network.c.o CMakeFiles/Networking_Project.dir/utils.c.o CMakeFiles/Networking_Project.dir/sorted_queue.c.o  -o Networking_Project 

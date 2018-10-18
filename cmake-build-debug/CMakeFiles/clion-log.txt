@@ -1,4 +1,0 @@
-/root/Téléchargements/clion-2018.2.4/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" "/root/CLionProjects/Networking Project"
--- Configuring done
--- Generating done
--- Build files have been written to: /root/CLionProjects/Networking Project/cmake-build-debug
