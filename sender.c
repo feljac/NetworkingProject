@@ -59,7 +59,7 @@ char** get_file_by_name(int argc, char** argv){
 void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
 
     int window[256]={0};
-    uint32_t debutWindow = 0;
+    uint8_t debutWindow = 0;
     int actual_size_window = MAX_WINDOW_SIZE;
     int lastPacketSend = 0;
     int nbPacketSend  = 0;
@@ -70,6 +70,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
         fprintf(stderr, "error with transformation FILE* into file descriptor\n");
         return;
     }
+    int rto = INIT_RTO;
     struct pollfd fds[2];
     /* Open STREAMS device. */
     fds[0].fd = fileDescriptor;
@@ -84,7 +85,8 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
     int ret;
     fprintf(stderr,"read/write\n");
     while(1){
-        ret = poll(fds, 2, -1);
+        check_retransmission_time_out(*list_pkts,debutWindow,actual_size_window,sfd,rto);
+        ret = poll(fds, 2, rto);
         if(ret > 0){
             if (fds[1].revents & POLLIN) {
                 fprintf(stderr,"Lecture socket\n");
@@ -162,7 +164,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
     }
 }
 // return the number of ACK receive
-int check_window_sequence_and_delete_packet(int* window,uint32_t* debutWindow,uint32_t index, list_pkt* list){
+int check_window_sequence_and_delete_packet(int* window,uint8_t* debutWindow,uint8_t index, list_pkt* list){
     if(compare_seqnum(*debutWindow,index) > MAX_WINDOW_SIZE -1 || compare_seqnum(*debutWindow,index) <= 0 ) return 0;
     uint8_t i = *debutWindow;
     int compteur = 0;
@@ -180,4 +182,22 @@ void delete_all_list(list_pkt* list){
         if(*pkts != NULL) free(*pkts);
     }
     free(list->pkts);
+}
+void check_retransmission_time_out(list_pkt list,uint8_t debutWindow,int actual_size_window,const int sfd, int rto){
+    uint8_t seqNum = debutWindow;
+    pkt_t* pkt ;
+    uint8_t compteur = 0;
+    while(compteur < actual_size_window){
+        pkt = get_packet_to_index(seqNum,list);
+        next_seqnum(&seqNum);
+        if(difftime(time(NULL),pkt_get_timestamp(pkt)) > rto){
+            size_t length_pkt_to_resend = sizeof(*pkt);
+            char  to_resend[length_pkt_to_resend];
+            pkt_encode(pkt,to_resend,&length_pkt_to_resend);
+            if((int)write(sfd,to_resend,length_pkt_to_resend) == -1){
+                fprintf(stderr, "Error write");
+            } 
+        }
+        compteur++;
+    }
 }

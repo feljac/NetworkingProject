@@ -21,9 +21,9 @@ debug: clean sender receiver
 
 # We use an implicit rule to build an executable named 'chat'
 sender: sender.o list_packet.o network.o packet_implem.o utils.o   -lz
-receiver: receiver.o network.o packet_implem.o utils.o  -lz 
+receiver: receiver.o network.o packet_implem.o utils.o sorted_queue.o  -lz 
 
 .PHONY: clean
 
 clean:
-	@rm -f sender receiver sender.o receiver.o packet_implem.o network.o list_packet.o utils.o
+	@rm -f sender receiver sender.o receiver.o packet_implem.o network.o list_packet.o utils.o sorted_queue.o
