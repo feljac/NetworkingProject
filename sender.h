@@ -18,8 +18,8 @@
 #define NOT_DEFINE 0
 
 // retransmition timeout
-#define INIT_RTO 500
-#define MAX_COMPTEUR_RTO 10
+#define INIT_RTO 2000
+#define MAX_COMPTEUR_RTO 50
 
 void read_write_loop(const int sfd, FILE* file,list_pkt* list);
 int check_window_sequence_and_delete_packet(int* window, uint8_t* debutWindow,uint8_t index,list_pkt* list);

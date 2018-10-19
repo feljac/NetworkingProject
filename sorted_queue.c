@@ -67,43 +67,28 @@ pkt_t* top(struct stack *s)
 }
 
 // Recursive function to insert an item x in sorted way
-void sorted_insert(struct stack **s, pkt_t* pkt)
+void sorted_insert(struct stack **s, pkt_t* pkt, uint8_t* window)
 {
-    fprintf(stderr,"Recurcive call sorted_insert seq: %d\n", pkt_get_seqnum(pkt));
     // Base case: Either stack is empty or newly inserted
     // item is greater than top (more than all existing)
     // if item we push is lenght 0 (end of transmission) we push it at the end
+    // only one item with the same seqnum that is not length 0 in queue
     pkt_t* top_stack = top(*s);
     if(!is_empty(*s) && pkt_get_seqnum(pkt) == pkt_get_seqnum(top_stack) && pkt_get_length(pkt) == pkt_get_length(top_stack)){
-        fprintf(stderr, "Already in queue\n");
+        fprintf(stderr, "Already in queue : %d\n", pkt_get_seqnum(pkt));
         return;
     }
     if (is_empty(*s) || sorted_queue_compare_seqnum(pkt_get_seqnum(pkt), pkt_get_seqnum(top_stack)) || (pkt_get_seqnum(pkt) == pkt_get_seqnum(top_stack) && pkt_get_length(pkt) != 0))
     {
+        fprintf(stderr,"Added to queue : %d\n", pkt_get_seqnum(pkt));
         push(s, pkt);
+        (*window)--;
         return;
     }
     // If top is smaller, remove the top item and recur
     pkt_t* temp = pop(s);
-    sorted_insert(s, pkt);
+    sorted_insert(s, pkt, window);
 
     // Put back the top item removed earlier
     push(s, temp);
-}
-
-// Function to sort stack
-void sort_stack(struct stack **s)
-{
-    // If stack is not empty
-    if (!is_empty(*s))
-    {
-        // Remove the top item
-        pkt_t* x = pop(s);
-
-        // Sort remaining stack
-        sort_stack(s);
-
-        // Push the top item back in sorted stack
-        sorted_insert(s, x);
-    }
 }

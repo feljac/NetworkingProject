@@ -36,9 +36,6 @@ pkt_t* pop(struct stack **s);
 pkt_t* top(struct stack *s);
 
 // Recursive function to insert an item x in sorted way
-void sorted_insert(struct stack **s, pkt_t* pkt);
-
-// Function to sort stack
-void sort_stack(struct stack **s);
+void sorted_insert(struct stack **s, pkt_t* pkt, uint8_t* window);
 
 #endif //NETWORKING_PROJECT_SORTED_QUEUE_H
