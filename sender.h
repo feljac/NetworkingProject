@@ -18,12 +18,13 @@
 #define NOT_DEFINE 0
 
 // retransmition timeout
-#define INIT_RTO 2000
-#define MAX_COMPTEUR_RTO 5
+#define INIT_RTO 500
+#define MAX_COMPTEUR_RTO 10
 
 void read_write_loop(const int sfd, FILE* file,list_pkt* list);
 int check_window_sequence_and_delete_packet(int* window, uint8_t* debutWindow,uint8_t index,list_pkt* list);
 void delete_all_list(list_pkt* list);
-int check_retransmission_time_out(list_pkt,uint8_t,int, const int,int,int*);
+int check_retransmission_time_out(list_pkt*,uint8_t,int, const int,int,int*);
+int read_data_and_fill_window(list_pkt*, int fileDescriptor,int sfd, int actual_size_window,int* lastPacketSend, int* nbPacketSend, uint8_t* lastSeqNumSend, uint8_t* seqNum, int* window);
 
 #endif //NETWORKING_PROJECT_SENDER_H
