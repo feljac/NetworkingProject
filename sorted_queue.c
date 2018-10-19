@@ -74,15 +74,15 @@ void sorted_insert(struct stack **s, pkt_t* pkt)
     // item is greater than top (more than all existing)
     // if item we push is lenght 0 (end of transmission) we push it at the end
     pkt_t* top_stack = top(*s);
-    fprintf(stderr,"TEST\n");
+    if(!is_empty(*s) && pkt_get_seqnum(pkt) == pkt_get_seqnum(top_stack) && pkt_get_length(pkt) == pkt_get_length(top_stack)){
+        fprintf(stderr, "Already in queue\n");
+        return;
+    }
     if (is_empty(*s) || sorted_queue_compare_seqnum(pkt_get_seqnum(pkt), pkt_get_seqnum(top_stack)) || (pkt_get_seqnum(pkt) == pkt_get_seqnum(top_stack) && pkt_get_length(pkt) != 0))
     {
-        fprintf(stderr,"Recurcive call sorted_insert PUSH seq: %d\n", pkt_get_seqnum(pkt));
         push(s, pkt);
         return;
     }
-
-    fprintf(stderr,"TEST2\n");
     // If top is smaller, remove the top item and recur
     pkt_t* temp = pop(s);
     sorted_insert(s, pkt);
