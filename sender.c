@@ -147,6 +147,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     uint8_t pkt_to_resend = pkt_receive->header.seqnum;
                     fprintf(stderr,"packet to resend : %d \n",pkt_to_resend);
                     pkt_t* pkt = get_packet_to_index(pkt_to_resend,*list_pkts);
+                    pkt_set_timestamp(pkt,time(NULL));
                     size_t length_pkt_to_resend = sizeof(*pkt)+pkt_get_length(pkt);
                     char  to_resend[length_pkt_to_resend];
                     if (pkt_encode(pkt,to_resend,&length_pkt_to_resend) != PKT_OK){
