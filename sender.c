@@ -160,7 +160,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
             }
         } else if(ret == 0 && actual_size_window != 0){ // retransmission timeout
             if(check_retransmission_time_out(list_pkts,debutWindow,actual_size_window,sfd,rto, &compteurRTO)){
-                sprintf(stderr," number of packet sent :%d but no ack close connection \n");
+                fprintf(stderr," number of packet sent : %d but no ACK/NACK -> close connection \n", compteurRTO);
                 break;
             }
         }
