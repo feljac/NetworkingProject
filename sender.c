@@ -77,7 +77,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
 
     int window[256]={0};
     uint8_t debutWindow = 0;
-    int actual_size_window = MAX_WINDOW_SIZE;
+    int actual_size_window = MAX_WINDOW_SIZE-1;
     int lastPacketSend = 0;
     uint8_t lastSeqNumSend = 0;
     int lastCompteur = 0;
