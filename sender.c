@@ -120,20 +120,22 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     continue;
                 }
                 if(pkt_get_type(pkt_receive) == PTYPE_ACK){
-                    fprintf(stderr,"receive an ACK -> %d\n",pkt_receive->header.seqnum);
+                    fprintf(stderr,"receive an ACK -> %d\n",pkt_get_seqnum(pkt_receive));
                     compteurRTO = MAX_COMPTEUR_RTO;
                     int ancienDebutWindow = debutWindow;
                     int  nbAckReceive;
-                    if((nbAckReceive = check_window_sequence_and_delete_packet(window,&debutWindow,pkt_receive->header.seqnum,list_pkts)) > 0){
+                    fprintf(stderr,"actual size %d pkt size : %d\n",actual_size_window,pkt_get_window(pkt_receive));
+                    actual_size_window = pkt_get_window(pkt_receive);
+
+                    if((nbAckReceive = check_window_sequence_and_delete_packet(window,&debutWindow,pkt_get_seqnum(pkt_receive),list_pkts)) > 0){
                         nbPacketSend -=  nbAckReceive;
-                        actual_size_window = pkt_get_window(pkt_receive);
                         fprintf(stderr,"nb paquet deleted %d\n",nbAckReceive);
                         fprintf(stderr,"move sliding window [%d -> %d[\n",ancienDebutWindow, debutWindow);
                         if(lastPacketSend && (nbPacketSend == 0)) break;
                     }
-                    if( lastSeqNumSend && pkt_receive->header.seqnum == lastSeqNumSend){
+                    if( lastSeqNumSend && pkt_get_seqnum(pkt_receive) == lastSeqNumSend){
                         lastCompteur++;
-                        if(lastCompteur == 2 && debutWindow == pkt_receive->header.seqnum ){
+                        if(lastCompteur == 2 && debutWindow == pkt_get_seqnum(pkt_receive) ){
                             fprintf(stderr,"the last packet is received close connection\n");
                             break;
                         }
@@ -142,12 +144,13 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                         break;
                     }
                 }else{
-                    fprintf(stderr,"receive an NACK -> %d\n", pkt_receive->header.seqnum);
+                    fprintf(stderr,"receive an NACK -> %d\n", pkt_get_seqnum(pkt_receive));
                     compteurRTO = MAX_COMPTEUR_RTO;
-                    uint8_t pkt_to_resend = pkt_receive->header.seqnum;
+                    uint8_t pkt_to_resend = pkt_get_seqnum(pkt_receive);
                     fprintf(stderr,"packet to resend : %d \n",pkt_to_resend);
                     pkt_t* pkt = get_packet_to_index(pkt_to_resend,*list_pkts);
                     pkt_set_timestamp(pkt,time(NULL));
+                    actual_size_window = pkt_get_window(pkt_receive);
                     size_t length_pkt_to_resend = sizeof(*pkt)+pkt_get_length(pkt);
                     char  to_resend[length_pkt_to_resend];
                     if (pkt_encode(pkt,to_resend,&length_pkt_to_resend) != PKT_OK){
