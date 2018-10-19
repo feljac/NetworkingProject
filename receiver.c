@@ -111,19 +111,20 @@ void write_to_file(FILE* file, int socket, struct stack ** sorted_stack, uint8_t
         uint16_t length = pkt_get_length(pkt);
         writed = fwrite(pkt_get_payload(pkt), 1, length, file);
         fprintf(stderr, "To write : %d -> %d\n", length, writed);
-        next_seqnum(last_seqnum_written);
-        next_seqnum(min_seqnum_received);
-
-        fprintf(stderr, "Next packet : %d\n", *min_seqnum_received);
         *tr = pkt_get_tr(pkt);
         *last_timestamp = pkt_get_timestamp(pkt);
         (*window)++;
         pop(sorted_stack);
-        send_message(socket, *tr, *min_seqnum_received, *window, *last_timestamp);
         if(pkt_get_length(pkt) == 0){
             fprintf(stderr, "Stop\n");
             *is_receiving = 0;
         }
+        else{
+            next_seqnum(last_seqnum_written);
+            next_seqnum(min_seqnum_received);
+        }
+        fprintf(stderr, "Next packet : %d\n", *min_seqnum_received);
+        send_message(socket, *tr, *min_seqnum_received, *window, *last_timestamp);
         pkt_del(pkt);
         pkt = peek(sorted_stack);
     }
