@@ -120,7 +120,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     continue;
                 }
                 if(pkt_get_type(pkt_receive) == PTYPE_ACK){
-                    fprintf(stderr,"receive an ACK\n");
+                    fprintf(stderr,"receive an ACK -> %d\n",pkt_receive->header.seqnum);
                     compteurRTO = MAX_COMPTEUR_RTO;
                     int ancienDebutWindow = debutWindow;
                     int  nbAckReceive;
@@ -142,7 +142,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                         break;
                     }
                 }else{
-                    fprintf(stderr,"receive an NACK\n");
+                    fprintf(stderr,"receive an NACK -> %d\n", pkt_receive->header.seqnum);
                     compteurRTO = MAX_COMPTEUR_RTO;
                     uint8_t pkt_to_resend = pkt_receive->header.seqnum;
                     fprintf(stderr,"packet to resend : %d \n",pkt_to_resend);
