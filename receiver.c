@@ -189,6 +189,11 @@ void receive_data_from_socket(FILE* file, int socket){
                 if(last_seqnum_written == pkt_get_seqnum(pkt)){
                     is_receiving = 0;
                     send_message(socket, 0, min_seqnum_received, window, last_timestamp);
+                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
+                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
+                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
+                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
+                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
                     pkt_del(pkt);
                 }
                 else{
@@ -214,6 +219,7 @@ void receive_data_from_socket(FILE* file, int socket){
                 last_timestamp = pkt_get_timestamp(pkt);
                 fprintf(stderr, "Valid pkt received : %d\n", pkt_get_seqnum(pkt));
                 sorted_insert(&sorted_stack, pkt, &window);
+                send_message(socket, tr, min_seqnum_received, window, last_timestamp);
                 fprintf(stderr, "Window : %d\n", window);
             }
         }
