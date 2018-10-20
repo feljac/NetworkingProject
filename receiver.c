@@ -102,7 +102,7 @@ void send_message(int socket, uint8_t tr,uint8_t seqnum, uint8_t window, uint32_
     pkt_del(pkt);
 }
 
-void write_to_file(FILE* file, int socket, struct stack ** sorted_stack, uint8_t* tr, uint32_t* last_timestamp, uint8_t* min_seqnum_received, uint8_t* last_seqnum_written, uint8_t* window, int* is_receiving){
+void write_to_file(int fileDescriptor, int socket, struct stack ** sorted_stack, uint8_t* tr, uint32_t* last_timestamp, uint8_t* min_seqnum_received, uint8_t* last_seqnum_written, uint8_t* window, int* is_receiving){
     int writed;
     pkt_t* pkt = peek(sorted_stack);
     while(pkt && (compare_seqnum(*last_seqnum_written, pkt_get_seqnum(pkt)) == 1 || pkt_get_length(pkt) == 0)){
@@ -111,7 +111,7 @@ void write_to_file(FILE* file, int socket, struct stack ** sorted_stack, uint8_t
             break;
         }
         uint16_t length = pkt_get_length(pkt);
-        if((writed = fwrite(pkt_get_payload(pkt), 1, length, file)) == -1){
+        if((writed = write( fileDescriptor, pkt_get_payload(pkt), length)) == -1){
             fprintf(stderr, "Write file error\n");
         }
         *tr = pkt_get_tr(pkt);
@@ -139,6 +139,11 @@ void write_to_file(FILE* file, int socket, struct stack ** sorted_stack, uint8_t
 }
 
 void receive_data_from_socket(FILE* file, int socket){
+    int fileDescriptor;
+    if((fileDescriptor = fileno(file)) == -1){
+        fprintf(stderr, "error with transformation FILE* into file descriptor\n");
+        return;
+    }
     int is_receiving = 1;
     ssize_t read_size = 0;
     uint8_t  tr = 0;
@@ -156,7 +161,7 @@ void receive_data_from_socket(FILE* file, int socket){
     fds[0].events = POLLIN;
 
     while(is_receiving){
-        write_to_file(file, socket, &sorted_stack, &tr, &last_timestamp, &min_seqnum_received, &last_seqnum_written, &window, &is_receiving);
+        write_to_file(fileDescriptor, socket, &sorted_stack, &tr, &last_timestamp, &min_seqnum_received, &last_seqnum_written, &window, &is_receiving);
         send_message(socket, tr, min_seqnum_received, window, last_timestamp);
         if(poll(fds, 1, -1) == -1){
             fprintf(stderr, "Error poll\n");

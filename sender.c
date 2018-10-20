@@ -88,7 +88,8 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
     if((fileDescriptor = fileno(file)) == -1){
         fprintf(stderr, "error with transformation FILE* into file descriptor\n");
         return;
-    }    int rto = INIT_RTO;
+    }   
+    int rto = INIT_RTO;
     struct pollfd fds[2];
     int compteurRTO = MAX_COMPTEUR_RTO;
     /* Open STREAMS device. */
@@ -117,6 +118,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                 }
                 // decode header read
                 if(pkt_decode(buffIn,headerLength,pkt_receive) == E_CRC){
+                    fprintf(stderr,"error CRC packet ACK \n");
                     continue;
                 }
                 if(pkt_get_type(pkt_receive) == PTYPE_ACK){
@@ -154,10 +156,12 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     size_t length_pkt_to_resend = sizeof(*pkt)+pkt_get_length(pkt);
                     char  to_resend[length_pkt_to_resend];
                     if (pkt_encode(pkt,to_resend,&length_pkt_to_resend) != PKT_OK){
-                        fprintf(stderr,"error encode pkt recive\n");
+                        fprintf(stderr,"error encode pkt NACK\n");
+                        continue;
                     }
                     if((int)write(sfd,to_resend,length_pkt_to_resend) == -1){
-                        fprintf(stderr, "Error write\n");
+                        fprintf(stderr, "Error write NACK pkt\n");
+                        continue;
                     }
                     fprintf(stderr,"receive NACK send packet \n");
                 }
@@ -208,7 +212,7 @@ int check_retransmission_time_out(list_pkt *list,uint8_t debutWindow,int actual_
             pkt_set_timestamp(*(list->pkts+seqNum),time(NULL));
             pkt_encode(pkt,to_resend,&length_pkt_to_resend);
                 if((int)write(sfd,to_resend,length_pkt_to_resend) == -1){
-                    fprintf(stderr, "Error write");
+                    fprintf(stderr, "Error write in retransmion timer,");
                 }
                 fprintf(stderr, "resend packet %d \n",seqNum); 
             }
@@ -220,14 +224,17 @@ int check_retransmission_time_out(list_pkt *list,uint8_t debutWindow,int actual_
     return 0;
 }
 int read_data_and_fill_list(list_pkt* list_pkts, int fileDescriptor, int sfd, int actual_size_window,int* lastPacketSend, int* nbPacketSend, uint8_t* lastSeqNumSend, uint8_t* seqNum, int* window, int* compteurRTO, int* rto){
+        char bufOut[MAX_PAYLOAD_SIZE];
         while( *nbPacketSend < actual_size_window  && !*lastPacketSend){
                 fprintf(stderr,"\nRead stdin\n");
                 pkt_t* pkt_send = (pkt_t *)pkt_new();
                 pkt_set_type(pkt_send,PTYPE_DATA);
                 pkt_set_tr(pkt_send,0);
-                char bufOut[MAX_PAYLOAD_SIZE];
                 size_t toReturn = read(fileDescriptor,bufOut,MAX_PAYLOAD_SIZE);
-                fprintf(stderr,"read -> %ld  \n",toReturn);
+                if((int) toReturn == -1){
+                    fprintf(stderr,"error read data \n");
+                    continue;
+                }
                 // last packet send
                 if(toReturn == 0){
                     fprintf(stderr,"EOF stdin\n");
@@ -262,11 +269,9 @@ int read_data_and_fill_list(list_pkt* list_pkts, int fileDescriptor, int sfd, in
                 int writed ;
                 if((writed = write(sfd,to_send,length_pkt)) == -1){
                     fprintf(stderr, "Error write\n");
-                    return 1;
                 }
                 (*nbPacketSend)++;
                 fprintf(stderr,"sent to server  seq: %d  -> %ld -> %d bytes\n",pkt_get_seqnum(pkt_send),length_pkt, writed);
-                
             }   
         return 0;
 }
