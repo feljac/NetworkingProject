@@ -77,7 +77,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
 
     int window[256]={0};
     uint8_t debutWindow = 0;
-    int actual_size_window = MAX_WINDOW_SIZE-1;
+    int actual_size_window = MAX_WINDOW_SIZE;
     int lastPacketSend = 0;
     uint8_t lastSeqNumSend = 0;
     int lastCompteur = 0;
@@ -102,7 +102,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
     fds[0].events = POLLIN;
     fprintf(stderr,"read/write\n");
     while(1){
-        if(read_data_and_fill_window(list_pkts,fileDescriptor,sfd, actual_size_window, &lastPacketSend, &nbPacketSend, &lastSeqNumSend,&seqNum, window) == -1){
+        if(read_data_and_fill_list(list_pkts,fileDescriptor,sfd, actual_size_window, &lastPacketSend, &nbPacketSend, &lastSeqNumSend, &seqNum, window, &compteurRTO, &rto)){
             break;
         }
         ret = poll(fds, nbrFile, rto);
@@ -124,7 +124,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     compteurRTO = MAX_COMPTEUR_RTO;
                     int ancienDebutWindow = debutWindow;
                     int  nbAckReceive;
-                    fprintf(stderr,"actual size %d pkt size : %d\n",actual_size_window,pkt_get_window(pkt_receive));
+                    fprintf(stderr,"actual windows size %d ACK pkt windows size : %d\n",actual_size_window,pkt_get_window(pkt_receive));
                     actual_size_window = pkt_get_window(pkt_receive);
 
                     if((nbAckReceive = check_window_sequence_and_delete_packet(window,&debutWindow,pkt_get_seqnum(pkt_receive),list_pkts)) > 0){
@@ -140,7 +140,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                             break;
                         }
                     }
-                    if(read_data_and_fill_window(list_pkts,fileDescriptor,sfd, actual_size_window, &lastPacketSend, &nbPacketSend, &lastSeqNumSend,&seqNum, window) == -1){
+                    if(read_data_and_fill_list(list_pkts,fileDescriptor,sfd, actual_size_window, &lastPacketSend, &nbPacketSend, &lastSeqNumSend,&seqNum, window, &compteurRTO, &rto)){
                         break;
                     }
                 }else{
@@ -163,6 +163,9 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                 }
             }
         } else if(ret == 0 && actual_size_window != 0){ // retransmission timeout
+            if(lastPacketSend == 1){
+               
+            } 
             if(check_retransmission_time_out(list_pkts,debutWindow,actual_size_window,sfd,rto, &compteurRTO)){
                 fprintf(stderr," number of packet sent : %d but no ACK/NACK -> close connection \n", MAX_COMPTEUR_RTO);
                 break;
@@ -172,7 +175,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
 }
 // return the number of ACK receive
 int check_window_sequence_and_delete_packet(int* window,uint8_t* debutWindow,uint8_t index, list_pkt* list){
-    if(compare_seqnum(*debutWindow,index) > MAX_WINDOW_SIZE-1 || compare_seqnum(*debutWindow,index) <= 0 ) return 0;
+    if(compare_seqnum(*debutWindow,index) > MAX_WINDOW_SIZE || compare_seqnum(*debutWindow,index) <= 0 ) return 0;
     uint8_t i = *debutWindow;
     if(i == index) return 0;
     int compteur = 0;
@@ -216,7 +219,7 @@ int check_retransmission_time_out(list_pkt *list,uint8_t debutWindow,int actual_
     (*compteurRto)--;
     return 0;
 }
-int read_data_and_fill_window(list_pkt* list_pkts, int fileDescriptor, int sfd, int actual_size_window,int* lastPacketSend, int* nbPacketSend, uint8_t* lastSeqNumSend, uint8_t* seqNum, int* window){
+int read_data_and_fill_list(list_pkt* list_pkts, int fileDescriptor, int sfd, int actual_size_window,int* lastPacketSend, int* nbPacketSend, uint8_t* lastSeqNumSend, uint8_t* seqNum, int* window, int* compteurRTO, int* rto){
         while( *nbPacketSend <= actual_size_window  && !*lastPacketSend){
                 fprintf(stderr,"\nRead stdin\n");
                 pkt_t* pkt_send = (pkt_t *)pkt_new();
@@ -229,7 +232,9 @@ int read_data_and_fill_window(list_pkt* list_pkts, int fileDescriptor, int sfd, 
                 if(toReturn == 0){
                     fprintf(stderr,"EOF stdin\n");
                     *lastPacketSend = 1;
-                    *lastSeqNumSend = *seqNum;                  
+                    *lastSeqNumSend = *seqNum;   
+                     *rto = 500;
+                     *compteurRTO = 20;               
                     fprintf(stderr, "lastSeq %d\n",*lastSeqNumSend);
                     if(seqNum == 0){
                         *seqNum = 255;
@@ -257,11 +262,11 @@ int read_data_and_fill_window(list_pkt* list_pkts, int fileDescriptor, int sfd, 
                 int writed ;
                 if((writed = write(sfd,to_send,length_pkt)) == -1){
                     fprintf(stderr, "Error write\n");
-                    return -1;
+                    return 1;
                 }
                 (*nbPacketSend)++;
                 fprintf(stderr,"sent to server  seq: %d  -> %ld -> %d bytes\n",pkt_get_seqnum(pkt_send),length_pkt, writed);
                 
             }   
-        return 1;
+        return 0;
 }

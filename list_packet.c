@@ -12,7 +12,7 @@
     return 1;
 }
 pkt_t* get_packet_to_index(int index_pkt, list_pkt list){
-    return (list.pkts)[index_pkt];
+    return *(list.pkts+index_pkt);
 }
 void delete_pkt_to_index(int index_pkt, list_pkt* list){
     fprintf(stderr,"seqNum to delete %d\n",(*(list->pkts+index_pkt))->header.seqnum);
@@ -21,6 +21,7 @@ void delete_pkt_to_index(int index_pkt, list_pkt* list){
         return;
     }
     free((*(list->pkts+index_pkt)));
+    (*(list->pkts+index_pkt)) = NULL;
 }
 void  add_packet_to_index(int index,pkt_t* pkt, list_pkt* list){
     *(list->pkts+index) = pkt;
