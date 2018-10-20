@@ -220,7 +220,7 @@ int check_retransmission_time_out(list_pkt *list,uint8_t debutWindow,int actual_
     return 0;
 }
 int read_data_and_fill_list(list_pkt* list_pkts, int fileDescriptor, int sfd, int actual_size_window,int* lastPacketSend, int* nbPacketSend, uint8_t* lastSeqNumSend, uint8_t* seqNum, int* window, int* compteurRTO, int* rto){
-        while( *nbPacketSend <= actual_size_window  && !*lastPacketSend){
+        while( *nbPacketSend < actual_size_window  && !*lastPacketSend){
                 fprintf(stderr,"\nRead stdin\n");
                 pkt_t* pkt_send = (pkt_t *)pkt_new();
                 pkt_set_type(pkt_send,PTYPE_DATA);
