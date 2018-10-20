@@ -24,7 +24,15 @@ void next_seqnum(uint8_t* seqnum){
 }
 
 int sorted_queue_compare_seqnum(uint8_t a, uint8_t b){
-    return (a + MAX_WINDOW_SIZE) % (MAX_SEQNUM + 1) < (b + MAX_WINDOW_SIZE) % (MAX_SEQNUM);
+    if(a > 226 && b <= 29){
+        return 1;
+    }
+    else if(b > 226 && a <= 29){
+        return 0;
+    }
+    else{
+        return a < b;
+    }
 }
 
 char** get_file_by_name(int argc, char** argv){
