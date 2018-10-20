@@ -64,12 +64,17 @@ int main(int argc, char** argv){
 
     if(is_file){
         file = fopen(filename, "w");
+        free(filename);
     }
     else{
         file = stdout;
     }
 
     receive_data_from_socket(file, sfd);
+
+    if(is_file){
+        fclose(file);
+    }
 }
 
 void send_message(int socket, uint8_t tr,uint8_t seqnum, uint8_t window, uint32_t last_timestamp){
@@ -99,14 +104,12 @@ void send_message(int socket, uint8_t tr,uint8_t seqnum, uint8_t window, uint32_
 
 void write_to_file(FILE* file, int socket, struct stack ** sorted_stack, uint8_t* tr, uint32_t* last_timestamp, uint8_t* min_seqnum_received, uint8_t* last_seqnum_written, uint8_t* window, int* is_receiving){
     int writed;
-    uint8_t temp_min_seq = *min_seqnum_received;
     pkt_t* pkt = peek(sorted_stack);
     while(pkt && (compare_seqnum(*last_seqnum_written, pkt_get_seqnum(pkt)) == 1 || pkt_get_length(pkt) == 0)){
         if(pkt_get_length(pkt) == 0 && compare_seqnum(*last_seqnum_written, pkt_get_seqnum(pkt)) != 0){
             fprintf(stderr, "Not end yet\n");
             break;
         }
-        fprintf(stderr, "Write to file from queue : %d\n", pkt_get_seqnum(pkt));
         uint16_t length = pkt_get_length(pkt);
         if((writed = fwrite(pkt_get_payload(pkt), 1, length, file)) == -1){
             fprintf(stderr, "Write file error\n");
@@ -126,15 +129,12 @@ void write_to_file(FILE* file, int socket, struct stack ** sorted_stack, uint8_t
             *is_receiving = 0;
         }
         else{
+            fprintf(stderr, "Write to file from queue : %d\n", pkt_get_seqnum(pkt));
             next_seqnum(last_seqnum_written);
             next_seqnum(min_seqnum_received);
         }
         pkt_del(pkt);
         pkt = peek(sorted_stack);
-    }
-    if(*min_seqnum_received != temp_min_seq){
-        fprintf(stderr, "Window : %d\n", *window);
-        send_message(socket, *tr, *min_seqnum_received, *window, *last_timestamp);
     }
 }
 
@@ -157,6 +157,7 @@ void receive_data_from_socket(FILE* file, int socket){
 
     while(is_receiving){
         write_to_file(file, socket, &sorted_stack, &tr, &last_timestamp, &min_seqnum_received, &last_seqnum_written, &window, &is_receiving);
+        send_message(socket, tr, min_seqnum_received, window, last_timestamp);
         if(poll(fds, 1, -1) == -1){
             fprintf(stderr, "Error poll\n");
             continue;
@@ -208,9 +209,8 @@ void receive_data_from_socket(FILE* file, int socket){
             /* if tr == 1 and header is correct send nack */
             else if(pkt_get_tr(pkt) == 1){
                 fprintf(stderr, "Truncated pkt received\n");
-                tr = pkt_get_tr(pkt);
                 last_timestamp = pkt_get_timestamp(pkt);
-                send_message(socket, tr, pkt_get_seqnum(pkt), window, last_timestamp);
+                send_message(socket, 1, pkt_get_seqnum(pkt), window, last_timestamp);
                 pkt_del(pkt);
             }
             /* if tr == 0 and pkt is correct send ack*/
@@ -219,7 +219,6 @@ void receive_data_from_socket(FILE* file, int socket){
                 last_timestamp = pkt_get_timestamp(pkt);
                 fprintf(stderr, "Valid pkt received : %d\n", pkt_get_seqnum(pkt));
                 sorted_insert(&sorted_stack, pkt, &window);
-                send_message(socket, tr, min_seqnum_received, window, last_timestamp);
                 fprintf(stderr, "Window : %d\n", window);
             }
         }

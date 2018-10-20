@@ -54,7 +54,17 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     uLong crc1, crc2;
     crc1 = crc32(0L, Z_NULL, 0);
     crc2 = crc32(0L, Z_NULL, 0);
-    crc1 = crc32(crc1, (Bytef*) data, sizeof(pkt->header) - sizeof(uint32_t));
+    size_t length = read;
+    if(pkt_get_tr(pkt) == 1){
+        pkt_set_tr(pkt, 0);
+        char* temp_buf = malloc(read);
+        pkt_encode(pkt, temp_buf, &length);
+        crc1 = crc32(crc1, (Bytef*) temp_buf, sizeof(pkt->header) - sizeof(uint32_t));
+        pkt_set_tr(pkt, 1);
+    }
+    else{
+        crc1 = crc32(crc1, (Bytef*) data, sizeof(pkt->header) - sizeof(uint32_t));
+    }
     if(htonl((uint32_t)crc1) != pkt_get_crc1(pkt)){
         fprintf(stderr, "crc1 invalid\n");
         return E_CRC;
