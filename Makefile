@@ -12,18 +12,18 @@ CFLAGS += -D_POSIX_C_SOURCE=201112L -D_XOPEN_SOURCE # feature_test_macros for ge
 LDFLAGS= -rdynamic 
 
 # Default target
-all: clean sender receiver 
+all: clean src/sender src/receiver 
 
 # If we run `make debug` instead, keep the debug symbols for gdb
 # and define the DEBUG macro.
 debug: CFLAGS += -g -DDEBUG -Wno-unused-parameter -fno-omit-frame-pointer 
-debug: clean sender receiver
+debug: clean src/sender src/receiver
 
 # We use an implicit rule to build an executable named 'chat'
-sender: sender.o list_packet.o network.o packet_implem.o utils.o -lz
-receiver: receiver.o network.o packet_implem.o utils.o sorted_queue.o -lz
+src/sender: src/sender.o src/list_packet.o src/network.o src/packet_implem.o src/utils.o -lz
+src/receiver: src/receiver.o src/network.o src/packet_implem.o src/utils.o src/sorted_queue.o -lz
 
 .PHONY: clean
 
 clean:
-	@rm -f sender receiver sender.o receiver.o packet_implem.o network.o list_packet.o utils.o sorted_queue.o
+	@rm -f src/sender src/receiver src/sender.o src/receiver.o src/packet_implem.o src/network.o src/list_packet.o src/utils.o src/sorted_queue.o

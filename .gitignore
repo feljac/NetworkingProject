@@ -1,14 +1,9 @@
-.idea/
 cmake-build-debug/
+.idea/
 *.o
 sender
 receiver
-CMakeLists.txt
 input_file
-link.log
 received_file
-receiver.log
-result.txt
-sender.log
-text1000.txt
+*.log
 
