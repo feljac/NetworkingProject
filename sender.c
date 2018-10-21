@@ -45,6 +45,10 @@ int main(int argc, char** argv){
             exit(EXIT_FAILURE);
         }
         free(filename);
+        if(feof(file) == 0){
+            fprintf(stderr,"the file is empty\n");
+            exit(EXIT_FAILURE);
+        }
     }else{
         file = stdin;
     }
@@ -155,7 +159,7 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                         fprintf(stderr, "Error write NACK pkt\n");
                         continue;
                     }
-                    fprintf(stderr,"receive NACK send packet \n");
+                    fprintf(stderr,"send packet -> %d \n",pkt_get_seqnum(pkt_receive));
                 }
             }
         } else if(ret == 0 && actual_size_window != 0){ // retransmission timeout
@@ -226,15 +230,11 @@ int read_data_and_fill_list(list_pkt* list_pkts, int fileDescriptor, int sfd, in
                 // last packet send
                 if(toReturn == 0){
                     fprintf(stderr,"EOF stdin\n");
-                     if (*seqNum == 0 && *nbPacketSend == 0){
-                        *seqNum = 0;
-                     }else{
-                        if(seqNum == 0){
+                    if(seqNum == 0){
                         *seqNum = 255;
-                        }else{
-                            *seqNum -= 1;
-                        }
-                     }
+                    }else{
+                        *seqNum -= 1;
+                    }
                     (*lastPacketSend)++;
                     *rto = 500;
                     *compteurRTO = 20;               
