@@ -107,7 +107,6 @@ void write_to_file(int fileDescriptor, int socket, struct stack ** sorted_stack,
     pkt_t* pkt = peek(sorted_stack);
     while(pkt && (compare_seqnum(*last_seqnum_written, pkt_get_seqnum(pkt)) == 1 || pkt_get_length(pkt) == 0)){
         if(pkt_get_length(pkt) == 0 && compare_seqnum(*last_seqnum_written, pkt_get_seqnum(pkt)) != 0){
-            fprintf(stderr, "Not end yet\n");
             break;
         }
         uint16_t length = pkt_get_length(pkt);
@@ -161,8 +160,6 @@ void receive_data_from_socket(FILE* file, int socket){
     fds[0].events = POLLIN;
 
     while(is_receiving){
-        write_to_file(fileDescriptor, socket, &sorted_stack, &tr, &last_timestamp, &min_seqnum_received, &last_seqnum_written, &window, &is_receiving);
-        send_message(socket, tr, min_seqnum_received, window, last_timestamp);
         if(poll(fds, 1, -1) == -1){
             fprintf(stderr, "Error poll\n");
             continue;
@@ -191,9 +188,12 @@ void receive_data_from_socket(FILE* file, int socket){
             }
             /*if last packet stop receiving*/
             else if(pkt_get_length(pkt) == 0){
-                fprintf(stderr, "End of data\n");
-                if(last_seqnum_written == pkt_get_seqnum(pkt)){
+                if(last_seqnum_written == pkt_get_seqnum(pkt) || (pkt_get_seqnum(pkt) == 0 && last_timestamp == 0) ){
+                    fprintf(stderr, "End of data we need to stop\n");
                     is_receiving = 0;
+                    if(pkt_get_seqnum(pkt) == 0 && last_timestamp == 0){
+                        next_seqnum(&min_seqnum_received);
+                    }
                     send_message(socket, 0, min_seqnum_received, window, last_timestamp);
                     send_message(socket, 0, min_seqnum_received, window, last_timestamp);
                     send_message(socket, 0, min_seqnum_received, window, last_timestamp);
@@ -224,8 +224,9 @@ void receive_data_from_socket(FILE* file, int socket){
                 last_timestamp = pkt_get_timestamp(pkt);
                 fprintf(stderr, "Valid pkt received : %d\n", pkt_get_seqnum(pkt));
                 sorted_insert(&sorted_stack, pkt, &window);
-                fprintf(stderr, "Window : %d\n", window);
             }
+            write_to_file(fileDescriptor, socket, &sorted_stack, &tr, &last_timestamp, &min_seqnum_received, &last_seqnum_written, &window, &is_receiving);
+            send_message(socket, tr, min_seqnum_received, window, last_timestamp);
         }
     }
 }

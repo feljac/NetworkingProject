@@ -75,12 +75,10 @@ void sorted_insert(struct stack **s, pkt_t* pkt, uint8_t* window)
     // only one item with the same seqnum that is not length 0 in queue
     pkt_t* top_stack = top(*s);
     if(!is_empty(*s) && pkt_get_seqnum(pkt) == pkt_get_seqnum(top_stack) && pkt_get_length(pkt) == pkt_get_length(top_stack)){
-        fprintf(stderr, "Already in queue : %d\n", pkt_get_seqnum(pkt));
         return;
     }
     if (is_empty(*s) || sorted_queue_compare_seqnum(pkt_get_seqnum(pkt), pkt_get_seqnum(top_stack)) || (pkt_get_seqnum(pkt) == pkt_get_seqnum(top_stack) && pkt_get_length(pkt) != 0))
     {
-        fprintf(stderr,"Added to queue : %d\n", pkt_get_seqnum(pkt));
         push(s, pkt);
         (*window)--;
         return;
