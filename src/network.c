@@ -79,8 +79,8 @@ int create_socket(struct sockaddr_in6 *source_addr, int src_port, struct sockadd
 
 int wait_for_client(int sfd){
     char* buf[1024];
-    struct sockaddr_storage* src_addr =(struct sockaddr_storage*) calloc(1, sizeof(struct sockaddr_storage));
-    socklen_t sendsize = sizeof(src_addr);
+    struct sockaddr_in6* src_addr =(struct sockaddr_in6*) calloc(1, sizeof(struct sockaddr_in6));
+    socklen_t sendsize = sizeof(*src_addr);
 
     fprintf(stderr,"Server waiting\n");
 
@@ -95,6 +95,7 @@ int wait_for_client(int sfd){
         fprintf(stderr, "Error wait connect\n");
         return -1;
     }
+    free(src_addr);
 
     fprintf(stderr,"Server connected\n");
     return 0;
