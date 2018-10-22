@@ -77,7 +77,7 @@ void sorted_insert(struct stack **s, pkt_t* pkt, uint8_t* window)
     if(!is_empty(*s) && pkt_get_seqnum(pkt) == pkt_get_seqnum(top_stack) && pkt_get_length(pkt) == pkt_get_length(top_stack)){
         return;
     }
-    if (is_empty(*s) || sorted_queue_compare_seqnum(pkt_get_seqnum(pkt), pkt_get_seqnum(top_stack)) || (pkt_get_seqnum(pkt) == pkt_get_seqnum(top_stack) && pkt_get_length(pkt) != 0))
+    if (is_empty(*s) || sorted_queue_compare_seqnum(pkt_get_seqnum(pkt), pkt_get_seqnum(top_stack)))
     {
         push(s, pkt);
         (*window)--;

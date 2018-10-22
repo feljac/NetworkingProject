@@ -106,9 +106,6 @@ void write_to_file(int fileDescriptor, int socket, struct stack ** sorted_stack,
     int writed;
     pkt_t* pkt = peek(sorted_stack);
     while(pkt && (compare_seqnum(*last_seqnum_written, pkt_get_seqnum(pkt)) == 1 || pkt_get_length(pkt) == 0)){
-        if(pkt_get_length(pkt) == 0 && compare_seqnum(*last_seqnum_written, pkt_get_seqnum(pkt)) != 0){
-            break;
-        }
         uint16_t length = pkt_get_length(pkt);
         if((writed = write( fileDescriptor, pkt_get_payload(pkt), length)) == -1){
             fprintf(stderr, "Write file error\n");
@@ -117,6 +114,9 @@ void write_to_file(int fileDescriptor, int socket, struct stack ** sorted_stack,
         *last_timestamp = pkt_get_timestamp(pkt);
         (*window)++;
         pop(sorted_stack);
+        fprintf(stderr, "Write to file from queue : %d\n", pkt_get_seqnum(pkt));
+        next_seqnum(last_seqnum_written);
+        next_seqnum(min_seqnum_received);
         if(pkt_get_length(pkt) == 0){
             fprintf(stderr, "End of file we need to stop !\n");
             send_message(socket, *tr, *min_seqnum_received, *window, *last_timestamp);
@@ -126,11 +126,6 @@ void write_to_file(int fileDescriptor, int socket, struct stack ** sorted_stack,
             send_message(socket, *tr, *min_seqnum_received, *window, *last_timestamp);
             send_message(socket, *tr, *min_seqnum_received, *window, *last_timestamp);
             *is_receiving = 0;
-        }
-        else{
-            fprintf(stderr, "Write to file from queue : %d\n", pkt_get_seqnum(pkt));
-            next_seqnum(last_seqnum_written);
-            next_seqnum(min_seqnum_received);
         }
         pkt_del(pkt);
         pkt = peek(sorted_stack);
@@ -185,24 +180,6 @@ void receive_data_from_socket(FILE* file, int socket){
             else if(window == 0){
                 fprintf(stderr, "window is full\n");
                 pkt_del(pkt);
-            }
-            /*if last packet stop receiving*/
-            else if(pkt_get_length(pkt) == 0){
-                if(last_seqnum_written == pkt_get_seqnum(pkt)){
-                    fprintf(stderr, "End of data we need to stop\n");
-                    is_receiving = 0;
-                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
-                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
-                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
-                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
-                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
-                    send_message(socket, 0, min_seqnum_received, window, last_timestamp);
-                    pkt_del(pkt);
-                }
-                else{
-                    fprintf(stderr, "End of data added to queue\n");
-                    sorted_insert(&sorted_stack, pkt, &window);
-                }
             }
             else if(compare_seqnum(min_seqnum_received, pkt_get_seqnum(pkt)) >= MAX_WINDOW_SIZE || compare_seqnum(pkt_get_seqnum(pkt), min_seqnum_received) < 0){
                 fprintf(stderr, "Seqnum out of window, min expected : %d -  received : %d\n", min_seqnum_received, pkt_get_seqnum(pkt));
