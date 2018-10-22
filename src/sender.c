@@ -227,7 +227,11 @@ int read_data_and_fill_list(list_pkt* list_pkts, int fileDescriptor, int sfd, in
                     *compteurRTO = 20;               
                     pkt_set_seqnum(pkt_send,*seqNum);
                     pkt_set_length(pkt_send,0);
-                    *lastSeqNumSend = *seqNum;  
+                    if(*seqNum + 1 == MAX_SEQNUM){
+                        *lastSeqNumSend = 0;
+                    } else{
+                        *lastSeqNumSend = *seqNum +1;
+                    }
                 }else{
                     pkt_set_length(pkt_send,toReturn);
                     pkt_set_payload(pkt_send,bufOut,toReturn);

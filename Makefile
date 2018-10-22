@@ -20,4 +20,4 @@ sender:
 .PHONY: clean
 
 clean:
-	@rm -f src/sender src/receiver
+	@rm -f sender receiver
