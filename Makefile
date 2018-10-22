@@ -1,3 +1,4 @@
+CFLAGS += -std=c99 # Define which version of the C standard to use
 CFLAGS += -Wall # Enable the 'all' set of warnings
 CFLAGS += -Werror # Treat all warnings as error
 CFLAGS += -Wshadow # Warn when shadowing variables
