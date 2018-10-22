@@ -45,10 +45,6 @@ int main(int argc, char** argv){
             exit(EXIT_FAILURE);
         }
         free(filename);
-        if(feof(file) == 0){
-            fprintf(stderr,"the file is empty\n");
-            exit(EXIT_FAILURE);
-        }
     }else{
         file = stdin;
     }
@@ -84,7 +80,6 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
     int actual_size_window = MAX_WINDOW_SIZE;
     int lastPacketSend = 0;
     uint8_t lastSeqNumSend = 0;
-    int lastCompteur = 0;
     int nbPacketSend  = 0;
     uint8_t seqNum = 0;
     size_t headerLength;
@@ -132,12 +127,9 @@ void read_write_loop(const int sfd,FILE* file, list_pkt * list_pkts ){
                     if((nbAckReceive = check_window_sequence_and_delete_packet(window,&debutWindow,pkt_get_seqnum(pkt_receive),list_pkts)) > 0){
                         nbPacketSend -=  nbAckReceive;
                     }
-                    if( lastPacketSend  && pkt_get_seqnum(pkt_receive) == lastSeqNumSend){
-                        lastCompteur++;
-                        if(lastCompteur == 2 && debutWindow == pkt_get_seqnum(pkt_receive) ){
-                            fprintf(stderr,"the last packet is received close connection\n");
-                            break;
-                        }
+                    if( lastPacketSend  && pkt_get_seqnum(pkt_receive) == lastSeqNumSend && debutWindow == pkt_get_seqnum(pkt_receive)){
+                        fprintf(stderr,"the last packet is received close connectiodebutWindow == pkt_get_seqnum(pkt_receive)n\n");
+                        break;
                     }
                     if(read_data_and_fill_list(list_pkts,fileDescriptor,sfd, actual_size_window, &lastPacketSend, &nbPacketSend, &lastSeqNumSend,&seqNum, window, &compteurRTO, &rto)){
                         break;
@@ -230,23 +222,17 @@ int read_data_and_fill_list(list_pkt* list_pkts, int fileDescriptor, int sfd, in
                 // last packet send
                 if(toReturn == 0){
                     fprintf(stderr,"EOF stdin\n");
-                    if(seqNum == 0){
-                        *seqNum = 255;
-                    }else{
-                        *seqNum -= 1;
-                    }
                     (*lastPacketSend)++;
                     *rto = 500;
                     *compteurRTO = 20;               
                     pkt_set_seqnum(pkt_send,*seqNum);
                     pkt_set_length(pkt_send,0);
-                    next_seqnum(seqNum);
                     *lastSeqNumSend = *seqNum;  
                 }else{
                     pkt_set_length(pkt_send,toReturn);
                     pkt_set_payload(pkt_send,bufOut,toReturn);
-                    pkt_set_seqnum(pkt_send,*seqNum);
                 }
+                pkt_set_seqnum(pkt_send,*seqNum);
                 pkt_set_window(pkt_send,actual_size_window);
                 pkt_set_timestamp(pkt_send,(unsigned)time(NULL));
                 size_t length_pkt = sizeof(*pkt_send)+pkt_get_length(pkt_send);
