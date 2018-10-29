@@ -171,7 +171,7 @@ int check_window_sequence_and_delete_packet(int* window,uint8_t* debutWindow,uin
     while(i != index){
         window[i] = NOT_DEFINE;
         delete_pkt_to_index(i,list);
-        next_seqnum(&i);
+        i++;
         compteur++;
     }
     *debutWindow = i;
@@ -202,7 +202,7 @@ int check_retransmission_time_out(list_pkt *list,uint8_t debutWindow,int actual_
                 }
             }
         }
-        next_seqnum(&seqNum);
+        seqNum++;
         compteur++;
     }
     (*compteurRto)--;
@@ -227,11 +227,7 @@ int read_data_and_fill_list(list_pkt* list_pkts, int fileDescriptor, int sfd, in
                     *compteurRTO = 20;               
                     pkt_set_seqnum(pkt_send,*seqNum);
                     pkt_set_length(pkt_send,0);
-                    if(*seqNum + 1 == MAX_SEQNUM){
-                        *lastSeqNumSend = 0;
-                    } else{
-                        *lastSeqNumSend = *seqNum +1;
-                    }
+                    *lastSeqNumSend = *seqNum +1;
                 }else{
                     pkt_set_length(pkt_send,toReturn);
                     pkt_set_payload(pkt_send,bufOut,toReturn);
@@ -246,7 +242,7 @@ int read_data_and_fill_list(list_pkt* list_pkts, int fileDescriptor, int sfd, in
                 }
                 window[*seqNum]= WAIT_ACK;
                 add_packet_to_index(*seqNum,pkt_send,list_pkts);
-                next_seqnum(seqNum);
+                (*seqNum)++;
                 int writed ;
                 if((writed = write(sfd,to_send,length_pkt)) == -1){
                     fprintf(stderr, "Error write\n");
