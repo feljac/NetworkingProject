@@ -37,6 +37,7 @@ const char * real_address(const char *address, struct sockaddr_in6 *rval){
         res = res->ai_next;
         return NULL;
     }
+    free(hints);
     return "No address found";
 }
 

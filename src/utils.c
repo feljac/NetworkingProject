@@ -13,16 +13,6 @@ int compare_seqnum(uint8_t a, uint8_t b){
     }
 }
 
-
-void next_seqnum(uint8_t* seqnum){
-    if(*seqnum + 1 == MAX_SEQNUM){
-        *seqnum = 0;
-    }
-    else{
-        (*seqnum)++;
-    }
-}
-
 int sorted_queue_compare_seqnum(uint8_t a, uint8_t b){
     if(a > 226 && b <= 29){
         return 1;

@@ -57,7 +57,12 @@ int main(int argc, char** argv){
 
     int sfd = create_socket(&addr, port, NULL, -1); /* Connected */
 
-    if(!sfd || wait_for_client(sfd) == -1){
+    if(!sfd){
+        fprintf(stderr, "Error creating socket\n");
+        return EXIT_FAILURE;
+    }
+
+    if(wait_for_client(sfd) == -1){
         fprintf(stderr, "Error waiting for client\n");
         return EXIT_FAILURE;
     }
@@ -105,7 +110,7 @@ void send_message(int socket, uint8_t tr,uint8_t seqnum, uint8_t window, uint32_
 void write_to_file(int fileDescriptor, int socket, struct stack ** sorted_stack, uint8_t* tr, uint32_t* last_timestamp, uint8_t* min_seqnum_received, uint8_t* last_seqnum_written, uint8_t* window, int* is_receiving){
     int writed;
     pkt_t* pkt = peek(sorted_stack);
-    while(pkt && (compare_seqnum(*last_seqnum_written, pkt_get_seqnum(pkt)) == 1 || pkt_get_length(pkt) == 0)){
+    while(pkt && (compare_seqnum(*last_seqnum_written, pkt_get_seqnum(pkt)) == 1)){
         uint16_t length = pkt_get_length(pkt);
         if((writed = write( fileDescriptor, pkt_get_payload(pkt), length)) == -1){
             fprintf(stderr, "Write file error\n");
@@ -115,8 +120,8 @@ void write_to_file(int fileDescriptor, int socket, struct stack ** sorted_stack,
         (*window)++;
         pop(sorted_stack);
         fprintf(stderr, "Write to file from queue : %d\n", pkt_get_seqnum(pkt));
-        next_seqnum(last_seqnum_written);
-        next_seqnum(min_seqnum_received);
+        (*last_seqnum_written)++;
+        (*min_seqnum_received)++;
         if(pkt_get_length(pkt) == 0){
             fprintf(stderr, "End of file we need to stop !\n");
             send_message(socket, *tr, *min_seqnum_received, *window, *last_timestamp);
@@ -200,6 +205,7 @@ void receive_data_from_socket(FILE* file, int socket){
                 fprintf(stderr, "Valid pkt received : %d\n", pkt_get_seqnum(pkt));
                 sorted_insert(&sorted_stack, pkt, &window);
             }
+            /*try to write received packets and send an ack of the packet we expect to receive next !*/
             write_to_file(fileDescriptor, socket, &sorted_stack, &tr, &last_timestamp, &min_seqnum_received, &last_seqnum_written, &window, &is_receiving);
             send_message(socket, tr, min_seqnum_received, window, last_timestamp);
         }

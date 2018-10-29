@@ -61,6 +61,7 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
         pkt_encode(pkt, temp_buf, &length);
         crc1 = crc32(crc1, (Bytef*) temp_buf, sizeof(pkt->header) - sizeof(uint32_t));
         pkt_set_tr(pkt, 1);
+        free(temp_buf);
     }
     else{
         crc1 = crc32(crc1, (Bytef*) data, sizeof(pkt->header) - sizeof(uint32_t));
